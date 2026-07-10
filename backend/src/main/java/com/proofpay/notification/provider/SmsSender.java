@@ -1,27 +1,28 @@
 package com.proofpay.notification.provider;
 
-import com.africastalking.AfricasTalking;
-import com.africastalking.SmsService;
-import com.africastalking.sms.Recipient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
-@Primary  // 🔥 Utilisé par défaut
+@Primary
 public class SmsSender implements NotificationSender {
 
     private static final Logger log = LoggerFactory.getLogger(SmsSender.class);
-    private final SmsService smsService;
+    private final String apiKey;
+    private final String apiUrl = "https://api.sms.to/sms/send";
+    private final RestTemplate restTemplate;
 
-    public SmsSender(
-            @Value("${africastalking.api-key}") String apiKey,
-            @Value("${africastalking.username}") String username) {
-        this.smsService = AfricasTalking.getService(AfricasTalking.SERVICE_SMS, username, apiKey);
+    public SmsSender(@Value("${sms.to.api-key}") String apiKey) {
+        this.apiKey = apiKey;
+        this.restTemplate = new RestTemplate();
     }
 
     @Override
@@ -33,13 +34,32 @@ public class SmsSender implements NotificationSender {
     public String send(String destination, String templateCode, String renderedMessage) throws Exception {
         try {
             log.info("Envoi SMS à {} : {}", destination, renderedMessage);
-            List<Recipient> response = smsService.send(renderedMessage, destination);
-            if (response != null && !response.isEmpty()) {
-                Recipient recipient = response.get(0);
-                log.info("SMS envoyé avec succès : {}", recipient.status);
-                return recipient.status;
+
+            // Préparer la requête
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("message", renderedMessage);
+            body.put("to", destination);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+            // Envoyer la requête
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    apiUrl,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                Map<String, Object> responseBody = response.getBody();
+                log.info("SMS envoyé avec succès : {}", responseBody);
+                return responseBody.get("message_id").toString();
+            } else {
+                throw new Exception("Échec de l'envoi SMS : " + response.getStatusCode());
             }
-            throw new Exception("Échec de l'envoi SMS : réponse vide");
         } catch (Exception e) {
             log.error("Erreur lors de l'envoi du SMS", e);
             throw new Exception("Erreur lors de l'envoi du SMS", e);

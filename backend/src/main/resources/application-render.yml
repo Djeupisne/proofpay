@@ -27,6 +27,14 @@ proofpay:
     active-provider: ${PROOFPAY_PAYMENT_PROVIDER:mock}
   notification:
     async: true
+  # ⬇️ NOUVEAU : Configuration OTP
+  otp:
+    length: 6
+    ttl-minutes: 5
+    max-attempts: 3
+
+# ⬇️ NOUVEAU : Configuration SMS.To
+sms.to.api-key: ${SMS_TO_API_KEY:}
 
 # Logs optimisés pour Render
 logging:
