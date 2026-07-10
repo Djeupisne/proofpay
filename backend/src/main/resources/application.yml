@@ -1,0 +1,99 @@
+spring:
+  application:
+    name: proofpay-backend
+
+  profiles:
+    active: local
+
+  datasource:
+    url: ${PROOFPAY_DB_URL:jdbc:postgresql://localhost:5432/proofpay}
+    username: ${PROOFPAY_DB_USER:postgres}
+    password: ${PROOFPAY_DB_PASSWORD:66373340}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${PROOFPAY_DB_POOL_MAX:10}
+      minimum-idle: ${PROOFPAY_DB_POOL_MIN:2}
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Le schéma est géré par Flyway, pas par Hibernate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+proofpay:
+  cors:
+    # Origines autorisées à appeler l'API depuis un navigateur (front Angular).
+    allowed-origins: ${PROOFPAY_CORS_ORIGINS:http://localhost:4200}
+
+  admin:
+    # Numéros promus automatiquement en ADMIN à leur prochaine connexion OTP.
+    # Permet de créer le premier compte administrateur sans accès direct à la base.
+    # Exemple : bootstrap-phones: "+22890000000,+22890000001"
+    bootstrap-phones: ${PROOFPAY_ADMIN_PHONES:}
+
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production-please-32-chars-min}
+    access-token-ttl-minutes: 30
+    refresh-token-ttl-days: 7
+
+  otp:
+    length: 6
+    ttl-minutes: 5
+    max-attempts: 3
+
+  transaction:
+    default-confirmation-delay-hours: 48
+    service-fee-percent: 2.00
+    service-fee-min-xof: 100
+
+  payment:
+    active-provider: mock   # mock | mtn | orange | moov
+
+  storage:
+    provider: local         # local | s3
+    local-base-path: ./storage/attachments
+    max-attachment-mb: 10
+
+  notification:
+    async: true
+    default-channel: SMS
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.proofpay: ${PROOFPAY_LOG_LEVEL:INFO}
+    org.springframework.security: WARN

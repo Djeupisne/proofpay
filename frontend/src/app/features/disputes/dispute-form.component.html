@@ -1,0 +1,28 @@
+<div class="pp-page">
+  <h2>Ouvrir un litige</h2>
+  <p class="pp-hint" style="margin-top: -4px; margin-bottom: 20px;">
+    Décrivez le problème rencontré ; le support tranchera à partir des éléments fournis par les deux parties.
+  </p>
+
+  <form (ngSubmit)="submit()" class="pp-form-card">
+    <label>Motif</label>
+    <select [(ngModel)]="reasonCode" name="reasonCode">
+      <option value="NON_LIVRE">Produit non livré</option>
+      <option value="NON_CONFORME">Produit non conforme</option>
+      <option value="PAIEMENT_CONTESTE">Paiement contesté</option>
+      <option value="AUTRE">Autre</option>
+    </select>
+
+    <label>Détails</label>
+    <textarea [(ngModel)]="reasonDetails" name="reasonDetails" rows="4"
+              placeholder="Expliquez précisément ce qui s'est passé..."></textarea>
+
+    <button type="submit" class="pp-submit-btn" [disabled]="submitting()">
+      {{ submitting() ? 'Envoi en cours...' : 'Envoyer au support' }}
+    </button>
+  </form>
+
+  @if (errorMessage()) {
+    <p class="pp-error">{{ errorMessage() }}</p>
+  }
+</div>

@@ -1,0 +1,33 @@
+<div class="pp-auth-screen">
+  <h1>ProofPay</h1>
+  <p>Payez et vendez en toute confiance.</p>
+
+  @if (!otpRequested()) {
+    <form (ngSubmit)="requestOtp()">
+      <label>Numéro de téléphone</label>
+      <input type="tel" name="phone" [ngModel]="phone()" (ngModelChange)="phone.set($event)"
+             placeholder="+228 90 00 00 00" autocomplete="tel" required>
+      @if (phone().trim().length > 0 && !isPhoneValid()) {
+        <p class="pp-field-error">Format invalide — 8 à 15 chiffres attendus.</p>
+      }
+      <button type="submit" [disabled]="requesting() || !isPhoneValid()">
+        @if (requesting()) { Envoi... } @else { Recevoir le code }
+      </button>
+      <p class="pp-security-note">🔒 Connexion sans mot de passe : un code à usage unique est envoyé par SMS à chaque connexion.</p>
+    </form>
+  } @else {
+    <form (ngSubmit)="verifyOtp()">
+      <label>Code reçu par SMS</label>
+      <input type="text" name="code" [ngModel]="code()" (ngModelChange)="code.set($event)"
+             maxlength="6" inputmode="numeric" autocomplete="one-time-code" required>
+      <button type="submit" [disabled]="!code().trim()">Se connecter</button>
+      @if (debugCode()) {
+        <p class="pp-debug-hint">Mode démo — code : {{ debugCode() }}</p>
+      }
+    </form>
+  }
+
+  @if (errorMessage()) {
+    <p class="pp-error">{{ errorMessage() }}</p>
+  }
+</div>

@@ -1,0 +1,100 @@
+<div class="pp-page">
+  <h2>Nouvelle transaction</h2>
+  <p class="pp-hint" style="margin-top: -4px; margin-bottom: 20px;">
+    Décrivez ce que vous vendez, indiquez le vendeur, et l'argent restera bloqué jusqu'à confirmation de la réception.
+  </p>
+
+  <form (ngSubmit)="submit()" class="pp-form-card">
+
+    <div class="pp-form-section">
+      <div class="pp-form-section-title">Détails</div>
+
+      <label>Titre</label>
+      <input type="text" [(ngModel)]="title" name="title" placeholder="Ex : iPhone 13, prestation de design..." required>
+
+      <label>Description</label>
+      <textarea [(ngModel)]="description" name="description" rows="3"
+                placeholder="Précisez l'état, les conditions de livraison, etc. (optionnel)"></textarea>
+
+      <label>Catégorie</label>
+      <select [(ngModel)]="categoryCode" name="categoryCode">
+        <option value="">Non spécifiée</option>
+        <option value="ELECTRONIQUE">Électronique</option>
+        <option value="MODE">Mode & accessoires</option>
+        <option value="MAISON">Maison & décoration</option>
+        <option value="VEHICULE">Véhicule</option>
+        <option value="SERVICE">Prestation de service</option>
+        <option value="AUTRE">Autre</option>
+      </select>
+    </div>
+
+    <div class="pp-form-section">
+      <div class="pp-form-section-title">Vendeur & montant</div>
+
+      <label>Numéro de téléphone du vendeur</label>
+      <input type="tel" [(ngModel)]="sellerPhone" name="sellerPhone" placeholder="+228 90 00 00 00" required>
+      <p class="pp-hint">Le vendeur doit déjà avoir un compte ProofPay actif avec ce numéro.</p>
+
+      <label>Montant</label>
+      <div class="pp-input-group">
+        <input type="number" [(ngModel)]="amount" name="amount" min="1" placeholder="0" required>
+        <span class="pp-input-suffix">XOF</span>
+      </div>
+      <div class="pp-fee-note">
+        💡 Des frais de service seront ajoutés automatiquement et affichés avant le paiement.
+      </div>
+
+      <label>Délai de livraison / confirmation</label>
+      <div class="pp-input-group">
+        <input type="number" [(ngModel)]="deliveryDelayHours" name="deliveryDelayHours" min="1" placeholder="Valeur par défaut">
+        <span class="pp-input-suffix">heures</span>
+      </div>
+      <p class="pp-hint">Laissez vide pour utiliser le délai standard défini par ProofPay.</p>
+    </div>
+
+    <div class="pp-form-section">
+      <div class="pp-form-section-title">Mode de confirmation de réception</div>
+
+      <div class="pp-radio-group">
+        <label class="pp-radio-option" [class.pp-radio-option--checked]="confirmationMode === 'BUTTON'">
+          <input type="radio" name="confirmationMode" value="BUTTON" [(ngModel)]="confirmationMode">
+          <span>
+            <span class="pp-radio-option-label">Bouton "j'ai reçu"</span>
+            <span class="pp-radio-option-desc">L'acheteur confirme en un clic depuis l'application.</span>
+          </span>
+        </label>
+
+        <label class="pp-radio-option" [class.pp-radio-option--checked]="confirmationMode === 'OTP'">
+          <input type="radio" name="confirmationMode" value="OTP" [(ngModel)]="confirmationMode">
+          <span>
+            <span class="pp-radio-option-label">Code OTP par SMS</span>
+            <span class="pp-radio-option-desc">Un code est envoyé à l'acheteur à la livraison ; il doit le saisir pour confirmer.</span>
+          </span>
+        </label>
+
+        <label class="pp-radio-option" [class.pp-radio-option--checked]="confirmationMode === 'CODE_SECRET'">
+          <input type="radio" name="confirmationMode" value="CODE_SECRET" [(ngModel)]="confirmationMode">
+          <span>
+            <span class="pp-radio-option-label">Code secret personnalisé</span>
+            <span class="pp-radio-option-desc">Vous définissez un code à communiquer vous-même à l'acheteur (ex : à la remise en main propre).</span>
+          </span>
+        </label>
+      </div>
+
+      @if (confirmationMode === 'CODE_SECRET') {
+        <label>Code secret</label>
+        <input type="text" [(ngModel)]="confirmationSecret" name="confirmationSecret"
+               placeholder="Ex : 4821" required>
+        <p class="pp-hint">Communiquez ce code à l'acheteur en dehors de l'application.</p>
+      }
+    </div>
+
+    <button type="submit" class="pp-submit-btn" [disabled]="submitting()">
+      {{ submitting() ? 'Envoi en cours...' : 'Envoyer au vendeur' }}
+    </button>
+  </form>
+
+  @if (errorMessage()) {
+    <p class="pp-error">{{ errorMessage() }}</p>
+  }
+</div>

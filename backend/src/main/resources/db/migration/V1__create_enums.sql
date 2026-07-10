@@ -1,0 +1,20 @@
+-- ================================
+-- PROOFPAY - V1 : Extensions et types énumérés
+-- ================================
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TYPE user_status AS ENUM ('PENDING_VERIFICATION','ACTIVE','SUSPENDED','BLOCKED');
+
+CREATE TYPE transaction_status AS ENUM (
+    'BROUILLON','EN_ATTENTE_ACCEPTATION','REFUSEE','EN_ATTENTE_PAIEMENT','PAYE',
+    'EN_LIVRAISON','A_CONFIRMER','RELACHE_AUTO','LITIGE','TERMINEE','REMBOURSEE',
+    'ANNULEE','EXPIREE'
+);
+
+CREATE TYPE payment_status AS ENUM ('INITIATED','PENDING','CONFIRMED','FAILED','REVERSED');
+
+CREATE TYPE dispute_status AS ENUM ('OPEN','UNDER_REVIEW','RESOLVED','REJECTED');
+
+CREATE TYPE confirmation_mode AS ENUM ('BUTTON','OTP','CODE_SECRET');
+
+CREATE TYPE notification_channel AS ENUM ('SMS','EMAIL','WHATSAPP','PUSH');

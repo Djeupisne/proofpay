@@ -1,0 +1,60 @@
+<div class="pp-page pp-page--wide">
+  <div class="pp-page-header">
+    <h2>Tableau de bord support</h2>
+    <div class="pp-admin-nav">
+      <a routerLink="/admin/disputes" class="pp-btn-primary">Litiges à traiter</a>
+      <a routerLink="/admin/settings">Paramètres</a>
+    </div>
+  </div>
+
+  <!-- Indicateurs clés (§8.8 : supervision) -->
+  @if (stats(); as s) {
+    <div class="pp-stats-grid">
+      <a routerLink="/admin/disputes" class="pp-stat-card" [class.pp-stat-card--alert]="s.openDisputes > 0">
+        <span class="pp-stat-value">{{ s.openDisputes }}</span>
+        <span class="pp-stat-label">Litige(s) à traiter</span>
+      </a>
+      <div class="pp-stat-card" [class.pp-stat-card--alert]="s.suspendedUsers > 0">
+        <span class="pp-stat-value">{{ s.suspendedUsers }}</span>
+        <span class="pp-stat-label">Compte(s) suspendu(s)</span>
+      </div>
+      <div class="pp-stat-card">
+        <span class="pp-stat-value">{{ activeCount(s) }}</span>
+        <span class="pp-stat-label">Transaction(s) en cours</span>
+      </div>
+      <div class="pp-stat-card">
+        <span class="pp-stat-value">{{ s.totalTransactions }}</span>
+        <span class="pp-stat-label">Transactions au total</span>
+      </div>
+      <div class="pp-stat-card">
+        <span class="pp-stat-value">{{ s.totalUsers }}</span>
+        <span class="pp-stat-label">Utilisateur(s) inscrit(s)</span>
+      </div>
+    </div>
+  } @else if (statsLoading()) {
+    <p class="pp-hint">Chargement des indicateurs...</p>
+  }
+
+  <div class="pp-form-card" style="margin-top: 24px;">
+    <h3 style="margin-top:0;">Rechercher une transaction</h3>
+    <form (ngSubmit)="search()" style="display:flex; gap:10px; flex-wrap:wrap;">
+      <input type="text" [(ngModel)]="publicRef" name="publicRef" placeholder="Référence (PP-XXXXXXXX)" style="margin-bottom:0; flex:1; min-width:180px;">
+      <button type="submit" [disabled]="searching() || !publicRef.trim()">Rechercher</button>
+    </form>
+
+    @if (searched() && !searching()) {
+      @if (results().length === 0) {
+        <p class="pp-hint" style="margin-top:14px;">Aucune transaction trouvée pour cette référence.</p>
+      } @else {
+        <ul class="pp-list" style="margin-top:14px;">
+          @for (tx of results(); track tx.id) {
+            <li>
+              <strong>{{ tx.publicRef }}</strong> — {{ tx.title }} —
+              <pp-status-badge [status]="tx.status"></pp-status-badge> — {{ tx.amount | ppCurrency:tx.currency }}
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<div class="pp-page">
+  <h2>Paramètres métier</h2>
+
+  @if (loading()) {
+    <p>Chargement...</p>
+  } @else {
+    <div class="pp-list">
+      @for (setting of settings(); track setting.settingKey) {
+        <div class="pp-card">
+          <label>{{ setting.settingKey }}</label>
+          @if (setting.description) {
+            <p style="margin-top: -8px; color: var(--pp-color-text-muted); font-size: 0.85rem;">{{ setting.description }}</p>
+          }
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" [(ngModel)]="editValues[setting.settingKey]" [name]="setting.settingKey" style="margin-bottom: 0;">
+            <button (click)="save(setting)" [disabled]="savingKey() === setting.settingKey">Enregistrer</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (successMessage()) {
+    <p style="color: var(--pp-color-accent); margin-top: 10px;">{{ successMessage() }}</p>
+  }
+  @if (errorMessage()) {
+    <p class="pp-error">{{ errorMessage() }}</p>
+  }
+</div>

@@ -1,0 +1,240 @@
+<div class="pp-page">
+    @if (transaction(); as tx) {
+    <!-- En-tête -->
+    <div class="tx-header">
+        <div>
+            <h2>{{ tx.title }}</h2>
+            <p class="pp-ref">Référence : {{ tx.publicRef }}</p>
+        </div>
+        <pp-status-badge [status]="tx.status"></pp-status-badge>
+    </div>
+
+    <!-- Identité de la contrepartie : signal de confiance central pour éviter les arnaques -->
+    @if (counterpartProfile(); as profile) {
+    <div class="pp-counterpart" [class.pp-counterpart--unverified]="!profile.verified">
+        <div class="pp-counterpart-avatar">{{ profile.displayName.charAt(0).toUpperCase() }}</div>
+        <div class="pp-counterpart-info">
+            <span class="pp-counterpart-role">{{ counterpartRole() }}</span>
+            <span class="pp-counterpart-name">
+                {{ profile.displayName }}
+                @if (profile.verified) {
+                    <span class="pp-verified-badge" title="Compte vérifié">✓ Vérifié</span>
+                } @else {
+                    <span class="pp-unverified-badge" title="Vérification de compte incomplète">⚠ Non vérifié</span>
+                }
+            </span>
+            <span class="pp-counterpart-sub">
+                {{ profile.transactionsCount }} transaction(s) terminée(s)
+                @if (profile.rating) { · {{ profile.rating }}/5 ★ }
+            </span>
+        </div>
+    </div>
+    }
+
+    <!-- Grille d'informations -->
+    <div class="tx-info-grid">
+        <div class="tx-info-card">
+            <span class="tx-info-label">Montant</span>
+            <span class="tx-info-value">{{ tx.amount | ppCurrency:tx.currency }}</span>
+            <span class="tx-info-sub">+ {{ tx.fees }} frais</span>
+        </div>
+        <div class="tx-info-card">
+            <span class="tx-info-label">Total</span>
+            <span class="tx-info-value">{{ tx.amount + tx.fees | ppCurrency:tx.currency }}</span>
+        </div>
+        <div class="tx-info-card">
+            <span class="tx-info-label">Catégorie</span>
+            <span class="tx-info-value">{{ tx.categoryCode || 'Non spécifiée' }}</span>
+        </div>
+        <div class="tx-info-card">
+            <span class="tx-info-label">Créée le</span>
+            <span class="tx-info-value">{{ tx.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+        </div>
+    </div>
+
+    <!-- Description -->
+    @if (tx.description) {
+    <div class="tx-description">
+        <h4>Description</h4>
+        <p>{{ tx.description }}</p>
+    </div>
+    }
+
+    <!-- Actions -->
+    <div class="tx-actions">
+        @if (tx.status === 'EN_ATTENTE_ACCEPTATION') {
+        <div class="action-group">
+            <button class="btn btn-success" (click)="accept()">✅ Accepter</button>
+            <button class="btn btn-danger" (click)="reject()">❌ Refuser</button>
+        </div>
+        }
+
+        @if (tx.status === 'EN_ATTENTE_PAIEMENT') {
+        <div class="action-group payment-section">
+            <div class="payment-info">
+                <h3>💳 Paiement</h3>
+                <p>Vous allez payer <strong>{{ tx.amount + tx.fees | ppCurrency:tx.currency }}</strong></p>
+                <p class="tx-hint">Le paiement est sécurisé et les fonds seront bloqués jusqu'à la livraison.</p>
+            </div>
+            <button class="btn btn-payment" (click)="pay()" [disabled]="paying()">
+                @if (paying()) {
+                <span class="spinner"></span> Traitement...
+                } @else {
+                💳 Payer maintenant
+                }
+            </button>
+        </div>
+        }
+
+        @if (tx.status === 'PAYE') {
+        <div class="action-group">
+            <div class="payment-success">
+                <span class="success-icon">✅</span>
+                <div>
+                    <h4>Paiement confirmé</h4>
+                    <p>Les fonds sont bloqués en attente de livraison.</p>
+                </div>
+            </div>
+            <button class="btn btn-primary" (click)="markDelivered()">📦 Déclarer la livraison</button>
+        </div>
+        }
+
+        @if (tx.status === 'EN_LIVRAISON' || tx.status === 'A_CONFIRMER') {
+        <div class="action-group">
+            <div class="delivery-info">
+                <span class="info-icon">📦</span>
+                <div>
+                    <h4>En livraison</h4>
+                    <p>Le vendeur a déclaré la livraison. Confirmez la réception pour libérer les fonds.</p>
+                </div>
+            </div>
+            @if (tx.status === 'A_CONFIRMER') {
+            <div class="confirm-section">
+                @if (tx.confirmationMode !== 'BUTTON') {
+                <div class="code-input">
+                    <label>{{ tx.confirmationMode === 'OTP' ? '📱 Code reçu par SMS' : '🔑 Code secret' }}</label>
+                    <input type="text" [(ngModel)]="confirmationCode" placeholder="Entrez le code" class="form-control">
+                </div>
+                }
+                <button class="btn btn-success" (click)="confirm()">✅ Confirmer la réception</button>
+            </div>
+            }
+        </div>
+        }
+
+        @if (tx.status === 'TERMINEE') {
+        <div class="action-group completed">
+            <span class="completed-icon">🎉</span>
+            <div>
+                <h4>Transaction terminée</h4>
+                <p>La transaction est terminée avec succès.</p>
+            </div>
+        </div>
+        }
+
+        @if (tx.status === 'REFUSEE' || tx.status === 'ANNULEE') {
+        <div class="action-group cancelled">
+            <span class="cancelled-icon">❌</span>
+            <div>
+                <h4>Transaction {{ tx.status === 'REFUSEE' ? 'refusée' : 'annulée' }}</h4>
+                <p>Cette transaction a été {{ tx.status === 'REFUSEE' ? 'refusée par le vendeur' : 'annulée' }}.</p>
+            </div>
+        </div>
+        }
+
+        <!-- Litige -->
+        @if (['PAYE', 'EN_LIVRAISON', 'A_CONFIRMER'].includes(tx.status)) {
+        <button class="btn btn-dispute" (click)="openDispute()">⚖️ Ouvrir un litige</button>
+        }
+    </div>
+
+    <!-- Pièces jointes / preuves -->
+    <pp-attachment-list ownerType="TRANSACTION" [ownerId]="tx.id"></pp-attachment-list>
+
+    <!-- Chronologie -->
+    @if (tx.paidAt || tx.deliveredAt || tx.confirmedAt || tx.completedAt || tx.cancelledAt) {
+    <div class="tx-timeline">
+        <h4>Chronologie</h4>
+        <div class="timeline-item">
+            <span class="timeline-dot info"></span>
+            <div>
+                <span class="timeline-date">{{ tx.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="timeline-text">Transaction créée</span>
+            </div>
+        </div>
+        @if (tx.paidAt) {
+        <div class="timeline-item">
+            <span class="timeline-dot info"></span>
+            <div>
+                <span class="timeline-date">{{ tx.paidAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="timeline-text">Paiement effectué, fonds bloqués</span>
+            </div>
+        </div>
+        }
+        @if (tx.deliveredAt) {
+        <div class="timeline-item">
+            <span class="timeline-dot info"></span>
+            <div>
+                <span class="timeline-date">{{ tx.deliveredAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="timeline-text">Livraison déclarée par le vendeur</span>
+            </div>
+        </div>
+        }
+        @if (tx.confirmedAt) {
+        <div class="timeline-item">
+            <span class="timeline-dot success"></span>
+            <div>
+                <span class="timeline-date">{{ tx.confirmedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="timeline-text">Réception confirmée par l'acheteur</span>
+            </div>
+        </div>
+        }
+        @if (tx.completedAt) {
+        <div class="timeline-item">
+            <span class="timeline-dot success"></span>
+            <div>
+                <span class="timeline-date">{{ tx.completedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="timeline-text">Transaction terminée, fonds libérés</span>
+            </div>
+        </div>
+        }
+        @if (tx.cancelledAt) {
+        <div class="timeline-item">
+            <span class="timeline-dot gold"></span>
+            <div>
+                <span class="timeline-date">{{ tx.cancelledAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="timeline-text">Transaction annulée</span>
+            </div>
+        </div>
+        }
+    </div>
+    }
+
+    <!-- Messages -->
+    @if (actionError()) {
+    <div class="alert alert-danger">
+        <span class="alert-icon">❌</span>
+        {{ actionError() }}
+    </div>
+    }
+
+    @if (actionSuccess()) {
+    <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        {{ actionSuccess() }}
+    </div>
+    }
+    } @else if (loading()) {
+    <div class="loading-container">
+        <div class="spinner-large"></div>
+        <p>Chargement de la transaction...</p>
+    </div>
+    } @else {
+    <div class="not-found">
+        <span class="not-found-icon">🔍</span>
+        <h3>Transaction introuvable</h3>
+        <p>La transaction que vous recherchez n'existe pas ou a été supprimée.</p>
+        <a routerLink="/transactions" class="btn btn-primary">Retour à la liste</a>
+    </div>
+    }
+</div>

@@ -1,0 +1,36 @@
+<div class="pp-page">
+  <h2>Litiges à traiter</h2>
+
+  @if (loading()) {
+    <p>Chargement...</p>
+  } @else if (disputes().length === 0) {
+    <p>Aucun litige en attente.</p>
+  } @else {
+    <div class="pp-list">
+      @for (dispute of disputes(); track dispute.id) {
+        <div class="pp-card">
+          <p class="pp-ref">Transaction : {{ dispute.transactionId }}</p>
+          <p><strong>Motif :</strong> {{ dispute.reasonCode }}</p>
+          @if (dispute.reasonDetails) {
+            <p>{{ dispute.reasonDetails }}</p>
+          }
+
+          <pp-attachment-list ownerType="DISPUTE" [ownerId]="dispute.id"></pp-attachment-list>
+
+          <label>Commentaire de décision (optionnel)</label>
+          <input type="text" [(ngModel)]="comments[dispute.id]" [name]="'comment-' + dispute.id">
+
+          <div class="pp-actions">
+            <button (click)="decide(dispute, 'REFUND_BUYER')" [disabled]="decidingId() === dispute.id">Rembourser l'acheteur</button>
+            <button (click)="decide(dispute, 'RELEASE_SELLER')" [disabled]="decidingId() === dispute.id">Libérer au vendeur</button>
+            <button class="pp-btn-danger" (click)="decide(dispute, 'CANCEL')" [disabled]="decidingId() === dispute.id">Annuler la transaction</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <p class="pp-error">{{ errorMessage() }}</p>
+  }
+</div>

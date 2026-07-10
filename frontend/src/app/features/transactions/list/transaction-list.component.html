@@ -1,0 +1,32 @@
+<div class="pp-page">
+  <div class="pp-page-header">
+    <h2>Mes transactions</h2>
+    <a routerLink="/transactions/new" class="pp-btn-primary">+ Nouvelle</a>
+  </div>
+
+  @if (loading()) {
+    <p>Chargement...</p>
+  } @else if (transactions().length === 0) {
+    <p>Aucune transaction pour le moment.</p>
+  } @else {
+    <ul class="pp-list">
+      @for (tx of transactions(); track tx.id) {
+        <li>
+          <a [routerLink]="['/transactions', tx.id]">
+            <strong>{{ tx.title }}</strong>
+            <pp-status-badge [status]="tx.status"></pp-status-badge>
+            <span>{{ tx.amount | ppCurrency:tx.currency }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+
+    @if (totalPages() > 1) {
+      <div class="pp-pagination">
+        <button type="button" class="pp-pagination-btn" (click)="previous()" [disabled]="page() === 0">← Précédent</button>
+        <span class="pp-pagination-info">Page {{ page() + 1 }} / {{ totalPages() }} · {{ totalElements() }} transaction(s)</span>
+        <button type="button" class="pp-pagination-btn" (click)="next()" [disabled]="page() >= totalPages() - 1">Suivant →</button>
+      </div>
+    }
+  }
+</div>

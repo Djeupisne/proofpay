@@ -1,0 +1,27 @@
+@if (auth.isAuthenticated()) {
+  <nav class="pp-navbar">
+    <a routerLink="/transactions" class="pp-navbar-brand">ProofPay</a>
+
+    <button type="button" class="pp-navbar-toggle" [class.pp-navbar-toggle--open]="menuOpen()"
+            (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-label="Ouvrir le menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="pp-navbar-links" [class.pp-navbar-links--open]="menuOpen()">
+      <a routerLink="/transactions" routerLinkActive="pp-nav-active">Transactions</a>
+      <a routerLink="/profile" routerLinkActive="pp-nav-active">Profil</a>
+      @if (auth.isAdmin()) {
+        <a routerLink="/admin" routerLinkActive="pp-nav-active">Support</a>
+        <a routerLink="/admin/disputes" routerLinkActive="pp-nav-active">Litiges</a>
+        <a routerLink="/admin/settings" routerLinkActive="pp-nav-active">Paramètres</a>
+      }
+      <button class="pp-navbar-logout" (click)="logout()">Déconnexion</button>
+    </div>
+
+    @if (menuOpen()) {
+      <div class="pp-navbar-backdrop" (click)="toggleMenu()"></div>
+    }
+  </nav>
+}
+<pp-offline-banner></pp-offline-banner>
+<router-outlet></router-outlet>

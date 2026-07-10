@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: proofpay-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-proofpay}
+      POSTGRES_USER: ${POSTGRES_USER:-proofpay}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?La variable POSTGRES_PASSWORD est obligatoire}
+    ports:
+      - "5432:5432"
+    volumes:
+      - proofpay_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proofpay}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: proofpay-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      PROOFPAY_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-proofpay}
+      PROOFPAY_DB_USER: ${POSTGRES_USER:-proofpay}
+      PROOFPAY_DB_PASSWORD: ${POSTGRES_PASSWORD:?La variable POSTGRES_PASSWORD est obligatoire}
+      JWT_SECRET: ${JWT_SECRET:?La variable JWT_SECRET est obligatoire (32+ caractères aléatoires)}
+      PROOFPAY_CORS_ORIGINS: ${PROOFPAY_CORS_ORIGINS:-http://localhost:4200}
+      PROOFPAY_ADMIN_PHONES: ${PROOFPAY_ADMIN_PHONES:-}
+      JAVA_OPTS: ${JAVA_OPTS:--Xmx512m -Xms256m}
+    ports:
+      - "8080:8080"
+    volumes:
+      - proofpay_attachments:/app/storage/attachments
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health/liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: proofpay-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+
+volumes:
+  proofpay_db_data:
+  proofpay_attachments:

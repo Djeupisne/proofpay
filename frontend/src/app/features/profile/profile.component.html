@@ -1,0 +1,43 @@
+<div class="pp-page">
+    <h2>Mon profil</h2>
+
+    @if (loading()) {
+    <p>Chargement...</p>
+    } @else {
+    @if (user(); as u) {
+    <p class="pp-hint" style="margin-top: -4px; margin-bottom: 20px;">
+        Numéro : {{ u.phone }} · Réputation : {{ u.rating ?? 0 }}/5 ({{ u.transactionsCount ?? 0 }} transactions terminées)
+    </p>
+
+    <form (ngSubmit)="save()" class="pp-form-card">
+        <label>Prénom</label>
+        <input type="text" [(ngModel)]="firstName" name="firstName">
+
+        <label>Nom</label>
+        <input type="text" [(ngModel)]="lastName" name="lastName">
+
+        <label>Email</label>
+        <input type="email" [(ngModel)]="email" name="email">
+
+        <label>Langue préférée</label>
+        <select [(ngModel)]="preferredLanguage" name="preferredLanguage">
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+        </select>
+
+        <button type="submit" class="pp-submit-btn" [disabled]="saving()">
+            {{ saving() ? 'Enregistrement...' : 'Enregistrer' }}
+        </button>
+    </form>
+
+    @if (successMessage()) {
+    <p style="color: var(--pp-color-accent); margin-top: 12px;">{{ successMessage() }}</p>
+    }
+    @if (errorMessage()) {
+    <p class="pp-error">{{ errorMessage() }}</p>
+    }
+    } @else {
+    <p>Aucun utilisateur trouvé</p>
+    }
+    }
+</div>
