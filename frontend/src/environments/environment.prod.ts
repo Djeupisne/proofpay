@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.proofpay.example.com/api'
+  apiUrl: 'https://proofpay-backend.onrender.com/api'
 };

@@ -1,0 +1,45 @@
+services:
+  # Backend (déjà déployé)
+  - type: web
+    name: proofpay-backend
+    runtime: image
+    repo: https://github.com/Djeupisne/proofpay
+    plan: starter
+    region: frankfurt
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+      - key: PROOFPAY_DB_URL
+        value: jdbc:postgresql://dpg-d9863dvavr4c738vft80-a/proofpay_db
+      - key: PROOFPAY_DB_USER
+        value: proofpay_db_user
+      - key: PROOFPAY_DB_PASSWORD
+        sync: false
+      - key: PROOFPAY_CORS_ORIGINS
+        value: https://proofpay-frontend.onrender.com
+      - key: JWT_SECRET
+        sync: false
+      - key: JAVA_OPTS
+        value: -Xmx512m -Xms256m -XX:+UseContainerSupport
+      - key: PROOFPAY_LOG_LEVEL
+        value: INFO
+      - key: PROOFPAY_STORAGE_PROVIDER
+        value: local
+      - key: PROOFPAY_PAYMENT_PROVIDER
+        value: mock
+      - key: PROOFPAY_ADMIN_PHONES
+        sync: false
+
+  # Frontend Angular avec Docker
+  - type: web
+    name: proofpay-frontend
+    runtime: image
+    plan: starter
+    region: frankfurt
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
