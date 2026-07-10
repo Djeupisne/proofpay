@@ -1,5 +1,7 @@
 package com.proofpay.user.api;
 
+import com.proofpay.notification.application.NotificationService;
+import com.proofpay.notification.domain.NotificationChannel;
 import com.proofpay.security.jwt.JwtService;
 import com.proofpay.user.application.UserService;
 import com.proofpay.user.domain.User;
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -16,17 +19,31 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final NotificationService notificationService;
 
-    public AuthController(UserService userService, JwtService jwtService) {
+    public AuthController(UserService userService, JwtService jwtService, NotificationService notificationService) {
         this.userService = userService;
         this.jwtService = jwtService;
+        this.notificationService = notificationService;
     }
 
     @PostMapping("/request-otp")
     public ResponseEntity<Map<String, String>> requestOtp(@Valid @RequestBody OtpRequest request) {
-        // En prod : envoyer le code via NotificationService (SMS). Ici renvoyé pour le MVP/démo.
+        // 1. Générer l'OTP (le code est stocké en mémoire dans OtpService)
         String code = userService.requestOtp(request.phone());
-        return ResponseEntity.ok(Map.of("message", "OTP envoyé", "debugCode", code));
+
+        // 2. Envoyer le code par SMS via NotificationService
+        notificationService.notifySync(
+                null, // userId (inconnu pour l'instant)
+                null, // transactionId
+                NotificationChannel.SMS,
+                "OTP_LOGIN",
+                request.phone(),
+                "Votre code OTP ProofPay est : " + code
+        );
+
+        // 3. NE PLUS RETOURNER LE CODE ! ⚠️
+        return ResponseEntity.ok(Map.of("message", "OTP envoyé par SMS"));
     }
 
     @PostMapping("/verify-otp")
@@ -41,12 +58,6 @@ public class AuthController {
         ));
     }
 
-    // ⚠️ @NotBlank ne suffit pas à valider un FORMAT (une chaîne "a" passe le test).
-    // La validation stricte du format (regex, longueur) est faite dans
-    // PhoneNormalizer.isValid(), appelé par UserService — @NotBlank ici ne sert
-    // qu'à rejeter immédiatement (400) les champs vides/manquants avant même
-    // d'atteindre le service, ce qui nécessite que ce record soit annoté @Valid
-    // dans le contrôleur (sinon ces contraintes sont silencieusement ignorées).
     public record OtpRequest(@NotBlank(message = "Le numéro de téléphone est obligatoire") String phone) {
     }
 
