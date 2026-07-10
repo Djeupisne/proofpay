@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -16,7 +17,7 @@ public class OtpService {
     private final SecureRandom random = new SecureRandom();
     private final ConcurrentHashMap<String, OtpEntry> store = new ConcurrentHashMap<>();
 
-    // ⬇️ NOUVEAU : Limite de tentatives par numéro
+    // Limite de tentatives
     private final ConcurrentHashMap<String, AttemptInfo> attemptStore = new ConcurrentHashMap<>();
     private static final int MAX_ATTEMPTS = 3;
     private static final long BLOCK_DURATION_MINUTES = 10;
@@ -28,19 +29,19 @@ public class OtpService {
     }
 
     public String generate(String phone) {
-        // Vérifier la limite de tentatives
         checkRateLimit(phone);
 
         StringBuilder code = new StringBuilder();
         for (int i = 0; i < length; i++) {
             code.append(random.nextInt(10));
         }
-        store.put(phone, new OtpEntry(code.toString(), Instant.now().plusSeconds(ttlMinutes * 60)));
+        // ✅ Correction : utiliser plusSeconds() au lieu de plusMinutes()
+        store.put(phone, new OtpEntry(code.toString(),
+                Instant.now().plusSeconds(ttlMinutes * 60)));
         return code.toString();
     }
 
     public boolean verify(String phone, String code) {
-        // Vérifier si le numéro est bloqué
         if (isBlocked(phone)) {
             throw new BusinessException("OTP_BLOCKED",
                     "Trop de tentatives. Veuillez réessayer dans " + BLOCK_DURATION_MINUTES + " minutes.");
@@ -48,7 +49,6 @@ public class OtpService {
 
         OtpEntry entry = store.get(phone);
         if (entry == null || Instant.now().isAfter(entry.expiresAt())) {
-            // Incrémenter le compteur d'échecs
             incrementAttempts(phone);
             return false;
         }
@@ -56,26 +56,21 @@ public class OtpService {
         boolean matches = entry.code().equals(code);
         if (matches) {
             store.remove(phone);
-            // Réinitialiser les tentatives en cas de succès
             attemptStore.remove(phone);
         } else {
-            // Incrémenter le compteur d'échecs
             incrementAttempts(phone);
         }
         return matches;
     }
 
-    // ⬇️ NOUVELLES MÉTHODES POUR LA LIMITE DE TENTATIVES
-
     private void checkRateLimit(String phone) {
         AttemptInfo info = attemptStore.get(phone);
         if (info != null && info.attempts >= MAX_ATTEMPTS) {
             if (Instant.now().isBefore(info.blockedUntil)) {
+                long minutesLeft = Duration.between(Instant.now(), info.blockedUntil).toMinutes() + 1;
                 throw new BusinessException("OTP_BLOCKED",
-                        "Trop de tentatives. Veuillez réessayer dans " +
-                                (BLOCK_DURATION_MINUTES - info.getElapsedMinutes()) + " minutes.");
+                        "Trop de tentatives. Veuillez réessayer dans " + minutesLeft + " minutes.");
             } else {
-                // Le blocage est expiré, réinitialiser
                 attemptStore.remove(phone);
             }
         }
@@ -88,16 +83,16 @@ public class OtpService {
     }
 
     private void incrementAttempts(String phone) {
+        // ✅ Correction : utiliser plusSeconds() au lieu de plusMinutes()
         AttemptInfo info = attemptStore.computeIfAbsent(phone, k ->
-                new AttemptInfo(0, Instant.now().plusMinutes(BLOCK_DURATION_MINUTES)));
+                new AttemptInfo(0, Instant.now().plusSeconds(BLOCK_DURATION_MINUTES * 60)));
         info.attempts++;
         if (info.attempts >= MAX_ATTEMPTS) {
-            info.blockedUntil = Instant.now().plusMinutes(BLOCK_DURATION_MINUTES);
+            info.blockedUntil = Instant.now().plusSeconds(BLOCK_DURATION_MINUTES * 60);
         }
         attemptStore.put(phone, info);
     }
 
-    // ⬇️ NOUVELLE CLASSE INTERNE
     private static class AttemptInfo {
         int attempts;
         Instant blockedUntil;
@@ -105,10 +100,6 @@ public class OtpService {
         AttemptInfo(int attempts, Instant blockedUntil) {
             this.attempts = attempts;
             this.blockedUntil = blockedUntil;
-        }
-
-        long getElapsedMinutes() {
-            return java.time.Duration.between(Instant.now(), blockedUntil).toMinutes();
         }
     }
 
