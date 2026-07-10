@@ -1,15 +1,18 @@
 spring:
+  profiles:
+    active: prod
+
   jpa:
     show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
 
 proofpay:
-  # En production, CORS_ORIGINS et JWT_SECRET DOIVENT être fournis explicitement
-  # (pas de valeur par défaut) : le démarrage échoue sinon, plutôt que de tourner
-  # avec un secret ou une origine non sécurisés.
   cors:
-    allowed-origins: ${PROOFPAY_CORS_ORIGINS:?La variable PROOFPAY_CORS_ORIGINS est obligatoire en production}
+    allowed-origins: ${PROOFPAY_CORS_ORIGINS:?PROOFPAY_CORS_ORIGINS required}
   jwt:
-    secret: ${JWT_SECRET:?La variable JWT_SECRET est obligatoire en production (32+ caractères aléatoires)}
+    secret: ${JWT_SECRET:?JWT_SECRET required}
   storage:
     provider: ${PROOFPAY_STORAGE_PROVIDER:local}
   payment:
@@ -17,15 +20,9 @@ proofpay:
   notification:
     async: true
 
-management:
-  endpoint:
-    health:
-      show-details: never
-
 logging:
   level:
     root: WARN
     com.proofpay: INFO
-    org.springframework.security: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

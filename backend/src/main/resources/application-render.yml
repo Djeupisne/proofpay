@@ -1,0 +1,73 @@
+spring:
+  # Désactiver certaines fonctionnalités coûteuses
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # Gestion des transactions
+  transaction:
+    default-timeout: 30s
+
+# Configuration Render
+proofpay:
+  # En production, ces variables DOIVENT être fournies
+  cors:
+    allowed-origins: ${PROOFPAY_CORS_ORIGINS:?CORS_ORIGINS required}
+  jwt:
+    secret: ${JWT_SECRET:?JWT_SECRET required}
+  storage:
+    provider: ${PROOFPAY_STORAGE_PROVIDER:local}
+    local-base-path: /app/storage/attachments
+  payment:
+    active-provider: ${PROOFPAY_PAYMENT_PROVIDER:mock}
+  notification:
+    async: true
+
+# Logs optimisés pour Render
+logging:
+  level:
+    root: INFO
+    com.proofpay: ${PROOFPAY_LOG_LEVEL:INFO}
+    org.springframework: WARN
+    org.hibernate: WARN
+    # Désactiver les logs SQL en production
+    org.hibernate.SQL: OFF
+    org.hibernate.type.descriptor.sql: OFF
+
+  pattern:
+    # Format compatible avec les logs Render
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+
+# Gestion des threads pour Render (conteneur limité)
+server:
+  tomcat:
+    threads:
+      max: 100
+      min-spare: 10
+    accept-count: 50
+    connection-timeout: 30000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
