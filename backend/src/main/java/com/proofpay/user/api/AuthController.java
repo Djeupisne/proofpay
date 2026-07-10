@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -32,9 +31,12 @@ public class AuthController {
         // 1. Générer l'OTP (le code est stocké en mémoire dans OtpService)
         String code = userService.requestOtp(request.phone());
 
-        // 2. Envoyer le code par SMS via NotificationService
+        // 2. Récupérer l'utilisateur (existant ou créé dans requestOtp)
+        User user = userService.getByPhone(request.phone());
+
+        // 3. Envoyer le code par SMS via NotificationService avec l'ID de l'utilisateur
         notificationService.notifySync(
-                null, // userId (inconnu pour l'instant)
+                user.getId(), // ✅ userId
                 null, // transactionId
                 NotificationChannel.SMS,
                 "OTP_LOGIN",
@@ -42,7 +44,6 @@ public class AuthController {
                 "Votre code OTP ProofPay est : " + code
         );
 
-        // 3. NE PLUS RETOURNER LE CODE ! ⚠️
         return ResponseEntity.ok(Map.of("message", "OTP envoyé par SMS"));
     }
 
