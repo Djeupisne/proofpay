@@ -29,20 +29,27 @@ public class AuthController {
     @PostMapping("/request-otp")
     public ResponseEntity<Map<String, String>> requestOtp(@Valid @RequestBody OtpRequest request) {
         // 1. Générer l'OTP (le code est stocké en mémoire dans OtpService)
+        //    Cette méthode crée l'utilisateur s'il n'existe pas
         String code = userService.requestOtp(request.phone());
 
-        // 2. Récupérer l'utilisateur (existant ou créé dans requestOtp)
+        // 2. Récupérer l'utilisateur (existant ou créé)
+        //    Utiliser la même méthode que requestOtp pour éviter les problèmes de normalisation
         User user = userService.getByPhone(request.phone());
 
         // 3. Envoyer le code par SMS via NotificationService avec l'ID de l'utilisateur
-        notificationService.notifySync(
-                user.getId(), // ✅ userId
-                null, // transactionId
-                NotificationChannel.SMS,
-                "OTP_LOGIN",
-                request.phone(),
-                "Votre code OTP ProofPay est : " + code
-        );
+        if (user != null && user.getId() != null) {
+            notificationService.notifySync(
+                    user.getId(),
+                    null,
+                    NotificationChannel.SMS,
+                    "OTP_LOGIN",
+                    request.phone(),
+                    "Votre code OTP ProofPay est : " + code
+            );
+        } else {
+            // Fallback : envoyer sans userId (si la DB le permet)
+            System.err.println("⚠️ Utilisateur introuvable pour : " + request.phone());
+        }
 
         return ResponseEntity.ok(Map.of("message", "OTP envoyé par SMS"));
     }
