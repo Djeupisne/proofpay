@@ -3,6 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
+// 🔥 NOUVELLE INTERFACE pour la demande d'OTP
+interface RequestOtpRequest {
+  phone: string;
+  email?: string;      // Optionnel pour SMS
+  channel?: 'SMS' | 'EMAIL'; // Canal choisi
+}
+
 interface VerifyOtpResponse {
   accessToken: string;
   userId: string;
@@ -26,8 +33,15 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  requestOtp(phone: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/request-otp`, { phone });
+  // 🔥 MODIFICATION : Ajout de l'email et du canal
+  requestOtp(phone: string, email?: string, channel: 'SMS' | 'EMAIL' = 'SMS'): Observable<{ message: string }> {
+    const payload: RequestOtpRequest = { phone };
+    if (email) {
+      payload.email = email;
+    }
+    payload.channel = channel;
+    
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/request-otp`, payload);
   }
 
   verifyOtp(phone: string, code: string): Observable<VerifyOtpResponse> {
