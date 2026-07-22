@@ -3,11 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
-// 🔥 NOUVELLE INTERFACE pour la demande d'OTP
+// 🔥 Interface pour la demande d'OTP
 interface RequestOtpRequest {
   phone: string;
-  email?: string;      // Optionnel pour SMS
-  channel?: 'SMS' | 'EMAIL'; // Canal choisi
+  email?: string;
+  channel?: 'SMS' | 'EMAIL';
 }
 
 interface VerifyOtpResponse {
@@ -20,11 +20,6 @@ const TOKEN_KEY = 'proofpay_access_token';
 const USER_ID_KEY = 'proofpay_user_id';
 const ROLE_KEY = 'proofpay_role';
 
-/**
- * Authentification par numéro + OTP (§8.1 spécifications fonctionnelles).
- * Le token est conservé en mémoire (signal) + localStorage pour la persistance
- * de session ; à durcir avec un refresh token en production.
- */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly currentUserId = signal<string | null>(localStorage.getItem(USER_ID_KEY));
