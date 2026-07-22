@@ -3,6 +3,7 @@ package com.proofpay.user.application;
 import com.proofpay.common.exception.BusinessException;
 import com.proofpay.common.exception.ResourceNotFoundException;
 import com.proofpay.common.util.PhoneNormalizer;
+import com.proofpay.notification.domain.NotificationChannel;
 import com.proofpay.security.otp.OtpService;
 import com.proofpay.user.domain.User;
 import com.proofpay.user.domain.UserRole;
@@ -46,6 +47,7 @@ public class UserService {
                         .status(UserStatus.PENDING_VERIFICATION)
                         .role(UserRole.USER)
                         .preferredLanguage("fr")
+                        .preferredChannel(NotificationChannel.SMS) // 🔥 Canal par défaut
                         .transactionsCount(0)
                         .disputesOpenedCount(0)
                         .disputesLostCount(0)
@@ -70,8 +72,6 @@ public class UserService {
         user.setLastLoginAt(Instant.now());
 
         // Promotion automatique si le numéro fait partie de la liste de bootstrap
-        // (proofpay.admin.bootstrap-phones) — évite le problème de l'œuf et la poule
-        // pour créer le premier compte administrateur sans accès direct à la base.
         if (bootstrapAdminPhones.contains(phone) && user.getRole() != UserRole.ADMIN) {
             user.setRole(UserRole.ADMIN);
         }
@@ -84,7 +84,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
     }
 
-    /** Résout un vendeur par numéro de téléphone (§8.2 : "renseigne le vendeur via numéro de téléphone"). */
+    /** Résout un vendeur par numéro de téléphone (§8.2). */
     public User getByPhone(String rawPhone) {
         String phone = PhoneNormalizer.normalize(rawPhone);
         if (!PhoneNormalizer.isValid(phone)) {
@@ -93,6 +93,23 @@ public class UserService {
         return userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Aucun compte ProofPay n'est associé à ce numéro. Le vendeur doit d'abord s'inscrire."));
+    }
+
+    // 🔥 NOUVELLE MÉTHODE : Mettre à jour le canal préféré
+    public User updatePreferredChannel(UUID userId, NotificationChannel channel) {
+        User user = getById(userId);
+        if (channel == null) {
+            throw new BusinessException("INVALID_CHANNEL", "Le canal de notification est invalide");
+        }
+        user.setPreferredChannel(channel);
+        user.setUpdatedAt(Instant.now());
+        return userRepository.save(user);
+    }
+
+    // 🔥 NOUVELLE MÉTHODE : Obtenir le canal préféré d'un utilisateur
+    public NotificationChannel getPreferredChannel(UUID userId) {
+        User user = getById(userId);
+        return user.getPreferredChannel() != null ? user.getPreferredChannel() : NotificationChannel.SMS;
     }
 
     /** Règle métier #14 et #22 : suspension manuelle ou automatique d'un compte. */
@@ -121,10 +138,7 @@ public class UserService {
     }
 
     /**
-     * Profil public réduit d'un utilisateur (§8.5 personas : "l'acheteur veut
-     * éviter de payer à un inconnu sans garantie", "le vendeur souhaite
-     * rassurer ses clients"). Volontairement minimal : ni téléphone ni e-mail,
-     * seulement de quoi juger de la fiabilité du compte en face.
+     * Profil public réduit d'un utilisateur (§8.5 personas).
      */
     public PublicProfile publicProfileOf(UUID userId) {
         User user = getById(userId);
