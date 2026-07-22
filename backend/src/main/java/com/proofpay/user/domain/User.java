@@ -1,5 +1,6 @@
 package com.proofpay.user.domain;
 
+import com.proofpay.notification.domain.NotificationChannel;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,6 +41,12 @@ public class User {
 
     @Column(name = "preferred_language", length = 10)
     private String preferredLanguage;
+
+    // 🔥 NOUVEAU : Canal préféré pour les notifications
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_channel", nullable = false)
+    @Builder.Default
+    private NotificationChannel preferredChannel = NotificationChannel.SMS;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
