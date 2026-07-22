@@ -1,10 +1,8 @@
 package com.proofpay.notification.provider;
 
-import com.proofpay.common.exception.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
@@ -48,16 +46,20 @@ public class BrevoEmailSender implements NotificationSender {
             headers.set("api-key", apiKey);
 
             Map<String, Object> body = new HashMap<>();
+            
+            // Expéditeur
             Map<String, Object> sender = new HashMap<>();
             sender.put("email", fromEmail);
             sender.put("name", fromName);
             body.put("sender", sender);
 
+            // Destinataire
             Map<String, Object> to = new HashMap<>();
             to.put("email", destination);
             body.put("to", new Map[]{to});
 
-            body.put("subject", "Votre code OTP ProofPay");
+            // Sujet et contenu
+            body.put("subject", "🔐 Votre code OTP ProofPay");
             body.put("htmlContent", renderedMessage);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
@@ -69,7 +71,7 @@ public class BrevoEmailSender implements NotificationSender {
                 log.info("✅ Email envoyé avec succès : {}", responseBody);
                 return responseBody.get("messageId").toString();
             } else {
-                throw new Exception("Échec de l'envoi email : " + response.getStatusCode());
+                throw new Exception("Échec de l'envoi email : " + response.getStatusCode() + " - " + response.getBody());
             }
         } catch (Exception e) {
             log.error("❌ Erreur lors de l'envoi de l'email", e);
