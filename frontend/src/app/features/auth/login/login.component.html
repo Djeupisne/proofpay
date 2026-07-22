@@ -4,22 +4,58 @@
 
   @if (!otpRequested()) {
     <form (ngSubmit)="requestOtp()">
+      <!-- Numéro de téléphone -->
       <label>Numéro de téléphone</label>
       <input type="tel" name="phone" [ngModel]="phone()" (ngModelChange)="phone.set($event)"
              placeholder="+228 90 00 00 00" autocomplete="tel" required>
       @if (phone().trim().length > 0 && !isPhoneValid()) {
         <p class="pp-field-error">Format invalide — 8 à 15 chiffres attendus.</p>
       }
-      <button type="submit" [disabled]="requesting() || !isPhoneValid()">
+
+      <!-- 🔥 NOUVEAU : Sélection du canal -->
+      <div class="pp-channel-selector">
+        <label>Recevoir le code par</label>
+        <div class="pp-radio-group">
+          <label class="pp-radio-label">
+            <input type="radio" name="channel" [value]="'SMS'" [checked]="channel() === 'SMS'"
+                   (change)="channel.set('SMS')">
+            📱 SMS
+          </label>
+          <label class="pp-radio-label">
+            <input type="radio" name="channel" [value]="'EMAIL'" [checked]="channel() === 'EMAIL'"
+                   (change)="channel.set('EMAIL')">
+            ✉️ Email
+          </label>
+        </div>
+      </div>
+
+      <!-- 🔥 NOUVEAU : Champ Email (visible uniquement si canal EMAIL) -->
+      @if (channel() === 'EMAIL') {
+        <div class="pp-email-field">
+          <label>Adresse email</label>
+          <input type="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)"
+                 placeholder="vous@exemple.com" autocomplete="email" required>
+          @if (email().trim().length > 0 && !isEmailValid()) {
+            <p class="pp-field-error">Email invalide.</p>
+          }
+        </div>
+      }
+
+      <button type="submit" [disabled]="requesting() || !isFormValid()">
         @if (requesting()) { Envoi... } @else { Recevoir le code }
       </button>
-      <p class="pp-security-note">🔒 Connexion sans mot de passe : un code à usage unique est envoyé par SMS à chaque connexion.</p>
+
+      <p class="pp-security-note">
+        🔒 Connexion sans mot de passe : un code à usage unique est envoyé
+        {{ channel() === 'SMS' ? 'par SMS' : 'par Email' }} à chaque connexion.
+      </p>
     </form>
   } @else {
     <form (ngSubmit)="verifyOtp()">
-      <label>Code reçu par SMS</label>
+      <label>Code reçu {{ channel() === 'SMS' ? 'par SMS' : 'par Email' }}</label>
       <input type="text" name="code" [ngModel]="code()" (ngModelChange)="code.set($event)"
-             maxlength="6" inputmode="numeric" autocomplete="one-time-code" required>
+             maxlength="6" inputmode="numeric" autocomplete="one-time-code" required
+             placeholder="6 chiffres">
       <button type="submit" [disabled]="!code().trim()">Se connecter</button>
       @if (debugCode()) {
         <p class="pp-debug-hint">Mode démo — code : {{ debugCode() }}</p>
