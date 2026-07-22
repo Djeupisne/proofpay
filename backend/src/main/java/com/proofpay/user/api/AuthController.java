@@ -53,10 +53,11 @@ public class AuthController {
                     System.out.println("📝 Création d'un nouvel utilisateur pour : " + phone);
                     return userRepository.save(User.builder()
                             .phone(phone)
-                            .email(request.email()) // ✅ Sauvegarde de l'email
+                            .email(request.email())
                             .status(UserStatus.PENDING_VERIFICATION)
                             .role(UserRole.USER)
                             .preferredLanguage("fr")
+                            .preferredChannel(NotificationChannel.SMS) // 🔥 Canal par défaut
                             .transactionsCount(0)
                             .disputesOpenedCount(0)
                             .disputesLostCount(0)
@@ -65,28 +66,32 @@ public class AuthController {
                             .build());
                 });
 
-        // 3. Mettre à jour l'email si fourni (et différent de l'existant)
+        // 3. Mettre à jour l'email si fourni
         if (request.email() != null && !request.email().isEmpty()) {
             user.setEmail(request.email());
             userRepository.save(user);
         }
 
-        System.out.println("✅ Utilisateur : " + user.getId() + " pour " + phone + " | Email: " + user.getEmail());
-
-        // 4. Générer l'OTP
-        String code = otpService.generate(phone);
-
-        // 5. Déterminer le canal (SMS ou EMAIL)
-        NotificationChannel channel = NotificationChannel.SMS; // Par défaut
+        // 4. Déterminer le canal
+        NotificationChannel channel;
         if (request.channel() != null) {
+            // Si l'utilisateur a spécifié un canal dans la requête, l'utiliser
             try {
                 channel = NotificationChannel.valueOf(request.channel().toUpperCase());
             } catch (IllegalArgumentException e) {
-                // Si le canal est invalide, on reste sur SMS
+                channel = user.getPreferredChannel() != null ? user.getPreferredChannel() : NotificationChannel.SMS;
             }
+        } else {
+            // Sinon, utiliser le canal préféré de l'utilisateur
+            channel = user.getPreferredChannel() != null ? user.getPreferredChannel() : NotificationChannel.SMS;
         }
 
-        // 6. Envoyer l'OTP via le canal choisi
+        System.out.println("✅ Utilisateur : " + user.getId() + " | Canal : " + channel);
+
+        // 5. Générer l'OTP
+        String code = otpService.generate(phone);
+
+        // 6. Envoyer via le canal choisi
         if (channel == NotificationChannel.EMAIL && user.getEmail() != null && !user.getEmail().isEmpty()) {
             // Envoi par EMAIL
             String emailBody = "<h1>🔐 Votre code OTP ProofPay</h1>" +
@@ -94,8 +99,7 @@ public class AuthController {
                     "<p>Votre code de connexion est : <strong style='font-size:24px;color:#15803d;'>" + code + "</strong></p>" +
                     "<p>Ce code est valable 5 minutes.</p>" +
                     "<p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>" +
-                    "<hr>" +
-                    "<p style='color:#666;font-size:12px;'>© ProofPay - Plateforme d'escrow digital</p>";
+                    "<hr><p style='color:#666;font-size:12px;'>© ProofPay - Plateforme d'escrow digital</p>";
 
             notificationService.notifySync(
                     user.getId(),
@@ -136,7 +140,7 @@ public class AuthController {
     public record OtpRequest(
             @NotBlank(message = "Le numéro de téléphone est obligatoire") String phone,
             @Email(message = "Email invalide") String email,
-            String channel // "SMS" ou "EMAIL"
+            String channel // "SMS" ou "EMAIL" (optionnel)
     ) {
     }
 
