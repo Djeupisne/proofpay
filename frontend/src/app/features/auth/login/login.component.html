@@ -12,16 +12,26 @@
         <p class="pp-field-error">Format invalide — 8 à 15 chiffres attendus.</p>
       }
 
-      <!-- 🔥 NOUVEAU : Sélection du canal -->
+      <!-- 🔥 Email (optionnel pour SMS, obligatoire pour Email) -->
+      <div class="pp-email-field">
+        <label>Adresse email {{ channel() === 'EMAIL' ? '(obligatoire)' : '(optionnelle)' }}</label>
+        <input type="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)"
+               placeholder="vous@exemple.com" autocomplete="email">
+        @if (channel() === 'EMAIL' && email().trim().length > 0 && !isEmailValid()) {
+          <p class="pp-field-error">Email invalide.</p>
+        }
+      </div>
+
+      <!-- 🔥 Sélection du canal -->
       <div class="pp-channel-selector">
         <label>Recevoir le code par</label>
         <div class="pp-radio-group">
-          <label class="pp-radio-label">
+          <label class="pp-radio-label" [class.active]="channel() === 'SMS'">
             <input type="radio" name="channel" [value]="'SMS'" [checked]="channel() === 'SMS'"
                    (change)="channel.set('SMS')">
             📱 SMS
           </label>
-          <label class="pp-radio-label">
+          <label class="pp-radio-label" [class.active]="channel() === 'EMAIL'">
             <input type="radio" name="channel" [value]="'EMAIL'" [checked]="channel() === 'EMAIL'"
                    (change)="channel.set('EMAIL')">
             ✉️ Email
@@ -29,17 +39,14 @@
         </div>
       </div>
 
-      <!-- 🔥 NOUVEAU : Champ Email (visible uniquement si canal EMAIL) -->
-      @if (channel() === 'EMAIL') {
-        <div class="pp-email-field">
-          <label>Adresse email</label>
-          <input type="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)"
-                 placeholder="vous@exemple.com" autocomplete="email" required>
-          @if (email().trim().length > 0 && !isEmailValid()) {
-            <p class="pp-field-error">Email invalide.</p>
-          }
-        </div>
-      }
+      <!-- 🔥 Rappel du choix -->
+      <div class="pp-remember-channel">
+        <label>
+          <input type="checkbox" [checked]="rememberChannel()" 
+                 (change)="rememberChannel.set(!rememberChannel())">
+          Se souvenir de mon choix
+        </label>
+      </div>
 
       <button type="submit" [disabled]="requesting() || !isFormValid()">
         @if (requesting()) { Envoi... } @else { Recevoir le code }
