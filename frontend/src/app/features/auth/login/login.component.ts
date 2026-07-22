@@ -1,31 +1,26 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 
-// Même règle que côté backend (PhoneNormalizer.isValid) : 8 à 15 chiffres,
-// + optionnel. Dupliquée ici volontairement pour un retour immédiat côté
-// utilisateur — la validation qui compte reste celle du serveur.
 const PHONE_PATTERN = /^\+?[0-9]{8,15}$/;
 
-// 🔥 NOUVEAU : Interface pour le canal
 type NotificationChannel = 'SMS' | 'EMAIL';
 
-/** Connexion par numéro de téléphone + OTP (§8.1 spécifications fonctionnelles). */
 @Component({
   selector: 'pp-login',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './login.component.html'
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   // Champs utilisateur
   phone = signal('');
   code = signal('');
-  email = signal(''); // 🔥 NOUVEAU : Email pour le canal EMAIL
-  channel = signal<NotificationChannel>('SMS'); // 🔥 NOUVEAU : Canal choisi
+  email = signal('');
+  channel = signal<NotificationChannel>('SMS');
 
   // États
   otpRequested = signal(false);
@@ -33,17 +28,17 @@ export class LoginComponent {
   errorMessage = signal<string | null>(null);
   debugCode = signal<string | null>(null);
 
-  /** Numéro normalisé (espaces/tirets retirés) pour validation et affichage cohérents. */
+  // 🔥 Sauvegarder le choix de l'utilisateur
+  rememberChannel = signal(true);
+
   normalizedPhone = computed(() => this.phone().trim().replace(/[\s\-().]/g, ''));
   isPhoneValid = computed(() => PHONE_PATTERN.test(this.normalizedPhone()));
-
-  // 🔥 NOUVEAU : Validation de l'email (simple)
   isEmailValid = computed(() => {
     const email = this.email().trim();
     return email === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   });
 
-  // 🔥 NOUVEAU : Le formulaire est-il valide ?
+  // 🔥 Validation du formulaire
   isFormValid = computed(() => {
     if (this.channel() === 'EMAIL') {
       return this.isPhoneValid() && this.isEmailValid() && this.email().trim() !== '';
@@ -53,26 +48,43 @@ export class LoginComponent {
 
   constructor(private authService: AuthService, private router: Router) {}
 
+  ngOnInit() {
+    // 🔥 Restaurer le dernier canal choisi
+    const savedChannel = localStorage.getItem('preferred_channel') as NotificationChannel;
+    if (savedChannel && (savedChannel === 'SMS' || savedChannel === 'EMAIL')) {
+      this.channel.set(savedChannel);
+    }
+
+    // 🔥 Restaurer l'email si sauvegardé
+    const savedEmail = localStorage.getItem('preferred_email');
+    if (savedEmail) {
+      this.email.set(savedEmail);
+    }
+  }
+
   requestOtp(): void {
     this.errorMessage.set(null);
     
-    // Validation
     if (!this.isPhoneValid()) {
       this.errorMessage.set('Numéro de téléphone invalide (8 à 15 chiffres, ex. +228 90 00 00 00).');
       return;
     }
 
-    // Si canal EMAIL, vérifier l'email
-    if (this.channel() === 'EMAIL') {
-      if (!this.isEmailValid() || !this.email().trim()) {
-        this.errorMessage.set('Veuillez entrer une adresse email valide.');
-        return;
+    if (this.channel() === 'EMAIL' && !this.isEmailValid()) {
+      this.errorMessage.set('Veuillez entrer une adresse email valide.');
+      return;
+    }
+
+    // 🔥 Sauvegarder le choix de l'utilisateur
+    if (this.rememberChannel()) {
+      localStorage.setItem('preferred_channel', this.channel());
+      if (this.email().trim()) {
+        localStorage.setItem('preferred_email', this.email().trim());
       }
     }
 
     this.requesting.set(true);
     
-    // 🔥 MODIFICATION : Appel avec email et canal
     this.authService.requestOtp(
       this.normalizedPhone(),
       this.channel() === 'EMAIL' ? this.email().trim() : undefined,
@@ -103,7 +115,6 @@ export class LoginComponent {
     });
   }
 
-  /** Remonte le message métier renvoyé par le backend. */
   private extractMessage(err: HttpErrorResponse, fallback: string): string {
     return err?.error?.message ?? fallback;
   }
