@@ -4,23 +4,30 @@
 
   @if (!otpRequested()) {
     <form (ngSubmit)="requestOtp()">
-      <!-- Numéro de téléphone -->
-      <label>Numéro de téléphone</label>
-      <input type="tel" name="phone" [ngModel]="phone()" (ngModelChange)="phone.set($event)"
-             placeholder="+228 90 00 00 00" autocomplete="tel" required>
-      @if (phone().trim().length > 0 && !isPhoneValid()) {
-        <p class="pp-field-error">Format invalide — 8 à 15 chiffres attendus.</p>
-      }
-
-      <!-- 🔥 Email (optionnel pour SMS, obligatoire pour Email) -->
-      <div class="pp-email-field">
-        <label>Adresse email {{ channel() === 'EMAIL' ? '(obligatoire)' : '(optionnelle)' }}</label>
-        <input type="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)"
-               placeholder="vous@exemple.com" autocomplete="email">
-        @if (channel() === 'EMAIL' && email().trim().length > 0 && !isEmailValid()) {
-          <p class="pp-field-error">Email invalide.</p>
+      <!-- Numéro de téléphone (toujours visible) -->
+      <div class="pp-phone-field">
+        <label>Numéro de téléphone</label>
+        <input type="tel" name="phone" [ngModel]="phone()" (ngModelChange)="phone.set($event)"
+               placeholder="+228 90 00 00 00" autocomplete="tel" required>
+        @if (phone().trim().length > 0 && !isPhoneValid()) {
+          <p class="pp-field-error">Format invalide — 8 à 15 chiffres attendus.</p>
         }
       </div>
+
+      <!-- 🔥 Champ Email (visible UNIQUEMENT si canal EMAIL) -->
+      @if (channel() === 'EMAIL') {
+        <div class="pp-email-field">
+          <label>Adresse email <span class="pp-required">*</span></label>
+          <input type="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)"
+                 placeholder="vous@exemple.com" autocomplete="email" required>
+          @if (email().trim().length > 0 && !isEmailValid()) {
+            <p class="pp-field-error">Email invalide.</p>
+          }
+          @if (email().trim().length === 0) {
+            <p class="pp-field-hint">L'email est obligatoire pour recevoir le code par Email.</p>
+          }
+        </div>
+      }
 
       <!-- 🔥 Sélection du canal -->
       <div class="pp-channel-selector">
@@ -28,18 +35,18 @@
         <div class="pp-radio-group">
           <label class="pp-radio-label" [class.active]="channel() === 'SMS'">
             <input type="radio" name="channel" [value]="'SMS'" [checked]="channel() === 'SMS'"
-                   (change)="channel.set('SMS')">
+                   (change)="onChannelChange('SMS')">
             📱 SMS
           </label>
           <label class="pp-radio-label" [class.active]="channel() === 'EMAIL'">
             <input type="radio" name="channel" [value]="'EMAIL'" [checked]="channel() === 'EMAIL'"
-                   (change)="channel.set('EMAIL')">
+                   (change)="onChannelChange('EMAIL')">
             ✉️ Email
           </label>
         </div>
       </div>
 
-      <!-- 🔥 Rappel du choix -->
+      <!-- Rappel du choix -->
       <div class="pp-remember-channel">
         <label>
           <input type="checkbox" [checked]="rememberChannel()" 
@@ -48,8 +55,12 @@
         </label>
       </div>
 
-      <button type="submit" [disabled]="requesting() || !isFormValid()">
-        @if (requesting()) { Envoi... } @else { Recevoir le code }
+      <button type="submit" [disabled]="requesting() || !isFormValid()" class="pp-submit-btn">
+        @if (requesting()) { 
+          Envoi en cours...
+        } @else { 
+          Recevoir le code par {{ channel() === 'SMS' ? 'SMS' : 'Email' }}
+        }
       </button>
 
       <p class="pp-security-note">
@@ -63,7 +74,7 @@
       <input type="text" name="code" [ngModel]="code()" (ngModelChange)="code.set($event)"
              maxlength="6" inputmode="numeric" autocomplete="one-time-code" required
              placeholder="6 chiffres">
-      <button type="submit" [disabled]="!code().trim()">Se connecter</button>
+      <button type="submit" [disabled]="!code().trim()" class="pp-submit-btn">Se connecter</button>
       @if (debugCode()) {
         <p class="pp-debug-hint">Mode démo — code : {{ debugCode() }}</p>
       }
