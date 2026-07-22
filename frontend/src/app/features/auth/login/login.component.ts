@@ -28,20 +28,26 @@ export class LoginComponent implements OnInit {
   errorMessage = signal<string | null>(null);
   debugCode = signal<string | null>(null);
 
-  // 🔥 Sauvegarder le choix de l'utilisateur
+  // Sauvegarder le choix de l'utilisateur
   rememberChannel = signal(true);
 
+  // Validations
   normalizedPhone = computed(() => this.phone().trim().replace(/[\s\-().]/g, ''));
   isPhoneValid = computed(() => PHONE_PATTERN.test(this.normalizedPhone()));
+  
+  // 🔥 Validation email : obligatoire si canal EMAIL
   isEmailValid = computed(() => {
     const email = this.email().trim();
-    return email === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (this.channel() === 'EMAIL') {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email !== '';
+    }
+    return true; // Email non requis pour SMS
   });
 
-  // 🔥 Validation du formulaire
+  // 🔥 Validation du formulaire selon le canal
   isFormValid = computed(() => {
     if (this.channel() === 'EMAIL') {
-      return this.isPhoneValid() && this.isEmailValid() && this.email().trim() !== '';
+      return this.isPhoneValid() && this.isEmailValid();
     }
     return this.isPhoneValid();
   });
@@ -49,16 +55,27 @@ export class LoginComponent implements OnInit {
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit() {
-    // 🔥 Restaurer le dernier canal choisi
+    // Restaurer le dernier canal choisi
     const savedChannel = localStorage.getItem('preferred_channel') as NotificationChannel;
     if (savedChannel && (savedChannel === 'SMS' || savedChannel === 'EMAIL')) {
       this.channel.set(savedChannel);
     }
 
-    // 🔥 Restaurer l'email si sauvegardé
+    // Restaurer l'email si sauvegardé
     const savedEmail = localStorage.getItem('preferred_email');
     if (savedEmail) {
       this.email.set(savedEmail);
+    }
+  }
+
+  // 🔥 Changement de canal : réinitialiser les erreurs
+  onChannelChange(newChannel: NotificationChannel): void {
+    this.channel.set(newChannel);
+    this.errorMessage.set(null);
+    
+    // Si on passe en SMS, vider l'email (optionnel)
+    if (newChannel === 'SMS') {
+      // On garde l'email mais on ne l'affiche pas
     }
   }
 
@@ -70,12 +87,15 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    if (this.channel() === 'EMAIL' && !this.isEmailValid()) {
-      this.errorMessage.set('Veuillez entrer une adresse email valide.');
-      return;
+    // 🔥 Vérification email si canal EMAIL
+    if (this.channel() === 'EMAIL') {
+      if (!this.isEmailValid()) {
+        this.errorMessage.set('Veuillez entrer une adresse email valide.');
+        return;
+      }
     }
 
-    // 🔥 Sauvegarder le choix de l'utilisateur
+    // Sauvegarder le choix de l'utilisateur
     if (this.rememberChannel()) {
       localStorage.setItem('preferred_channel', this.channel());
       if (this.email().trim()) {
