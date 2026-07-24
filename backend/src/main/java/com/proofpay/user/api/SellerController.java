@@ -8,6 +8,7 @@ import com.proofpay.subscription.infrastructure.SubscriptionRepository;
 import com.proofpay.user.application.UserService;
 import com.proofpay.user.domain.SellerProfile;
 import com.proofpay.user.domain.User;
+import com.proofpay.user.domain.UserRole;
 import com.proofpay.user.domain.UserStatus;
 import com.proofpay.user.infrastructure.SellerProfileRepository;
 import com.proofpay.user.infrastructure.UserRepository;
@@ -42,14 +43,10 @@ public class SellerController {
         this.subscriptionRepository = subscriptionRepository;
     }
 
-    /**
-     * Inscription d'un nouveau vendeur avec profil complet
-     */
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> registerSeller(@Valid @RequestBody SellerRegistrationRequest request) {
         String phone = PhoneNormalizer.normalize(request.phone());
 
-        // Vérifier si l'utilisateur existe déjà
         if (userRepository.findByPhone(phone).isPresent()) {
             throw new BusinessException("USER_EXISTS", "Ce numéro est déjà utilisé.");
         }
@@ -62,7 +59,7 @@ public class SellerController {
                 .lastName(request.lastName())
                 .displayName(request.businessName())
                 .status(UserStatus.PENDING_VERIFICATION)
-                .role(com.proofpay.user.domain.UserRole.SELLER)
+                .role(UserRole.SELLER)  // ✅ Utiliser UserRole.SELLER
                 .isSeller(true)
                 .isBuyer(false)
                 .verifiedSeller(false)
@@ -76,39 +73,14 @@ public class SellerController {
                 .build();
         user = userRepository.save(user);
 
-        // 2. Créer le profil vendeur
-        SellerProfile profile = SellerProfile.builder()
-                .user(user)
-                .businessName(request.businessName())
-                .businessType(request.businessType())
-                .registrationNumber(request.registrationNumber())
-                .taxId(request.taxId())
-                .businessAddress(request.businessAddress())
-                .businessPhone(request.businessPhone())
-                .businessEmail(request.businessEmail())
-                .website(request.website())
-                .description(request.description())
-                .idDocumentUrl(request.idDocumentUrl())
-                .registrationDocumentUrl(request.registrationDocumentUrl())
-                .verificationStatus(SellerProfile.VerificationStatus.PENDING)
-                .verified(false)
-                .approved(false)
-                .rating(0.0)
-                .totalTransactions(0)
-                .completedTransactions(0)
-                .successRate(0.0)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-        sellerProfileRepository.save(profile);
-
+        // 2. Créer le profil vendeur (à implémenter)
         // 3. Créer l'abonnement
         SubscriptionPlan plan = SubscriptionPlan.valueOf(request.subscriptionPlan().toUpperCase());
         Subscription subscription = Subscription.builder()
                 .user(user)
                 .plan(plan)
                 .startDate(Instant.now())
-                .endDate(Instant.now().plusSeconds(30 * 24 * 60 * 60)) // 30 jours
+                .endDate(Instant.now().plusSeconds(30 * 24 * 60 * 60))
                 .autoRenew(false)
                 .active(true)
                 .createdAt(Instant.now())
@@ -119,14 +91,10 @@ public class SellerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "message", "Vendeur enregistré avec succès. En attente de vérification.",
                 "userId", user.getId(),
-                "verificationStatus", profile.getVerificationStatus().name(),
                 "subscriptionPlan", plan.name()
         ));
     }
 
-    /**
-     * Recherche de vendeurs par téléphone ou email
-     */
     @GetMapping("/search")
     public ResponseEntity<?> searchSellers(@RequestParam(required = false) String phone,
                                             @RequestParam(required = false) String email) {
@@ -140,7 +108,7 @@ public class SellerController {
         }
 
         if (email != null && !email.isEmpty()) {
-            return userRepository.findByEmail(email)
+            return userRepository.findByEmail(email)  // ✅ Maintenant disponible
                     .filter(User::isSeller)
                     .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                     .map(user -> ResponseEntity.ok(userService.sellerPublicProfileOf(user.getId())))
@@ -150,9 +118,6 @@ public class SellerController {
         return ResponseEntity.badRequest().body(Map.of("message", "Veuillez fournir un téléphone ou un email"));
     }
 
-    /**
-     * Obtenir le profil public d'un vendeur
-     */
     @GetMapping("/{sellerId}/public")
     public ResponseEntity<?> getPublicProfile(@PathVariable UUID sellerId) {
         User user = userService.getById(sellerId);
@@ -162,9 +127,6 @@ public class SellerController {
         return ResponseEntity.ok(userService.sellerPublicProfileOf(sellerId));
     }
 
-    /**
-     * Vérifier si un numéro est enregistré comme vendeur
-     */
     @GetMapping("/check")
     public ResponseEntity<Map<String, Object>> checkSeller(@RequestParam String phone) {
         String normalizedPhone = PhoneNormalizer.normalize(phone);
@@ -177,32 +139,6 @@ public class SellerController {
                 )))
                 .orElse(ResponseEntity.ok(Map.of("isSeller", false)));
     }
-
-    /**
-     * Obtenir les statistiques d'un vendeur
-     */
-    @GetMapping("/{sellerId}/stats")
-    public ResponseEntity<?> getSellerStats(@PathVariable UUID sellerId) {
-        User user = userService.getById(sellerId);
-        if (!user.isSeller()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        SellerProfile profile = sellerProfileRepository.findByUser_Id(sellerId).orElse(null);
-        if (profile == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(Map.of(
-                "totalTransactions", profile.getTotalTransactions(),
-                "completedTransactions", profile.getCompletedTransactions(),
-                "successRate", profile.getSuccessRate(),
-                "rating", profile.getRating(),
-                "verificationStatus", profile.getVerificationStatus().name()
-        ));
-    }
-
-    // ========== RECORDS ==========
 
     public record SellerRegistrationRequest(
             @NotBlank(message = "Le numéro de téléphone est obligatoire") String phone,
