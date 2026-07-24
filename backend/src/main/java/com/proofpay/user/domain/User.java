@@ -42,7 +42,6 @@ public class User {
     @Column(name = "preferred_language", length = 10)
     private String preferredLanguage;
 
-    // Canal préféré pour les notifications
     @Enumerated(EnumType.STRING)
     @Column(name = "preferred_channel", nullable = false)
     @Builder.Default
@@ -56,7 +55,7 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
-    // 🔥 NOUVEAUX CHAMPS
+    // ===== CHAMPS VENDEUR =====
     @Column(name = "is_seller", nullable = false)
     @Builder.Default
     private boolean isSeller = false;
@@ -76,6 +75,8 @@ public class User {
     @Column(name = "seller_verified_at")
     private Instant sellerVerifiedAt;
 
+    // ===== CHAMPS POUR LA RÉPUTATION =====
+    @Column(precision = 10, scale = 2)
     private BigDecimal rating;
 
     @Column(name = "transactions_count")
@@ -96,12 +97,47 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    /** Règle métier #14 : un utilisateur suspendu ne peut plus créer ni accepter de transactions. */
+    // ========== MÉTHODES ==========
+
     public boolean canTransact() {
         return status == UserStatus.ACTIVE;
     }
 
     public boolean isActiveSeller() {
         return isSeller && status == UserStatus.ACTIVE && verifiedSeller && approvedSeller;
+    }
+
+    // ========== GETTERS ET SETTERS POUR LA RÉPUTATION ==========
+
+    public BigDecimal getRating() {
+        return rating != null ? rating : BigDecimal.ZERO;
+    }
+
+    public void setRating(BigDecimal rating) {
+        this.rating = rating;
+    }
+
+    public Integer getTransactionsCount() {
+        return transactionsCount != null ? transactionsCount : 0;
+    }
+
+    public void setTransactionsCount(Integer transactionsCount) {
+        this.transactionsCount = transactionsCount;
+    }
+
+    public Integer getDisputesOpenedCount() {
+        return disputesOpenedCount != null ? disputesOpenedCount : 0;
+    }
+
+    public void setDisputesOpenedCount(Integer disputesOpenedCount) {
+        this.disputesOpenedCount = disputesOpenedCount;
+    }
+
+    public Integer getDisputesLostCount() {
+        return disputesLostCount != null ? disputesLostCount : 0;
+    }
+
+    public void setDisputesLostCount(Integer disputesLostCount) {
+        this.disputesLostCount = disputesLostCount;
     }
 }
