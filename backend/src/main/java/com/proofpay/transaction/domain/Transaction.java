@@ -46,7 +46,6 @@ public class Transaction {
     @Column(nullable = false)
     private BigDecimal fees;
 
-    // Colonne générée en base (total_amount) : lue uniquement, non insérée/mise à jour par JPA
     @Column(name = "total_amount", insertable = false, updatable = false)
     private BigDecimal totalAmount;
 
@@ -87,4 +86,13 @@ public class Transaction {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    // ✅ Méthodes getters explicites (déjà fournies par @Getter, mais ajoutées pour clarté)
+    public UUID getId() { return id; }
+    public UUID getBuyerId() { return buyerId; }
+    public UUID getSellerId() { return sellerId; }
+    public String getTitle() { return title; }
+    public String getCurrency() { return currency; }
+    public BigDecimal getAmount() { return amount; }
+    public TransactionStatus getStatus() { return status; }
 }
