@@ -108,4 +108,16 @@ public class Dispute {
         public Builder transactionId(UUID transactionId) { this.transactionId = transactionId; return this; }
         public Builder openedBy(UUID openedBy) { this.openedBy = openedBy; return this; }
         public Builder reasonCode(String reasonCode) { this.reasonCode = reasonCode; return this; }
-        public Builder reasonDetails(String reasonDetails) {
+        public Builder reasonDetails(String reasonDetails) { this.reasonDetails = reasonDetails; return this; }
+        public Builder status(DisputeStatus status) { this.status = status; return this; }
+        public Builder decisionCode(String decisionCode) { this.decisionCode = decisionCode; return this; }
+        public Builder decisionComment(String decisionComment) { this.decisionComment = decisionComment; return this; }
+        public Builder resolvedBy(UUID resolvedBy) { this.resolvedBy = resolvedBy; return this; }
+        public Builder openedAt(Instant openedAt) { this.openedAt = openedAt; return this; }
+        public Builder resolvedAt(Instant resolvedAt) { this.resolvedAt = resolvedAt; return this; }
+
+        public Dispute build() {
+            return new Dispute(this);
+        }
+    }
+}
