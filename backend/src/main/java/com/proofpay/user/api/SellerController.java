@@ -77,7 +77,7 @@ public class SellerController {
         SubscriptionPlan plan = SubscriptionPlan.valueOf(request.subscriptionPlan().toUpperCase());
         Subscription subscription = Subscription.builder()
                 .user(user)
-                .plan(plan)  // ✅ Utiliser SubscriptionPlan directement
+                .plan(plan)
                 .startDate(Instant.now())
                 .endDate(Instant.now().plusSeconds(30 * 24 * 60 * 60))
                 .autoRenew(false)
@@ -90,13 +90,13 @@ public class SellerController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
                         "message", "Vendeur enregistré avec succès. En attente de vérification.",
-                        "userId", user.getId(),
+                        "userId", user.getId().toString(),
                         "subscriptionPlan", plan.name()
                 ));
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Map<String, Object>> searchSellers(
+    public ResponseEntity<?> searchSellers(
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) String email) {
         
@@ -121,7 +121,7 @@ public class SellerController {
     }
 
     @GetMapping("/{sellerId}/public")
-    public ResponseEntity<Map<String, Object>> getPublicProfile(@PathVariable UUID sellerId) {
+    public ResponseEntity<?> getPublicProfile(@PathVariable UUID sellerId) {
         User user = userService.getById(sellerId);
         if (!user.isSeller() || user.getStatus() != UserStatus.ACTIVE) {
             return ResponseEntity.notFound().build();
@@ -133,12 +133,13 @@ public class SellerController {
     public ResponseEntity<Map<String, Object>> checkSeller(@RequestParam String phone) {
         String normalizedPhone = PhoneNormalizer.normalize(phone);
         return userRepository.findByPhone(normalizedPhone)
-                .map(user -> ResponseEntity.ok(Map.of(
+                .map(user -> Map.<String, Object>of(
                         "isSeller", user.isSeller(),
                         "isActive", user.getStatus() == UserStatus.ACTIVE,
                         "isVerified", user.isVerifiedSeller(),
                         "displayName", user.getDisplayName()
-                )))
+                ))
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.ok(Map.of("isSeller", false)));
     }
 
