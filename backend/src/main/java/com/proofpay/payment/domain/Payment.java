@@ -63,4 +63,45 @@ public class Payment {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    // ✅ Getters explicites pour les champs utilisés par PaymentReconciliationJob
+    public String getProviderCode() {
+        return providerCode;
+    }
+
+    public String getProviderRef() {
+        return providerRef;
+    }
+
+    public PaymentStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PaymentStatus status) {
+        this.status = status;
+    }
+
+    public UUID getTransactionId() {
+        return transactionId;
+    }
+
+    public String getRequestRef() {
+        return requestRef;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public Instant getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(Instant paidAt) {
+        this.paidAt = paidAt;
+    }
 }
