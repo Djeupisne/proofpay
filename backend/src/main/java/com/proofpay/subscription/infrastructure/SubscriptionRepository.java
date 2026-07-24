@@ -10,10 +10,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
+    
     Optional<Subscription> findByUser(User user);
+    
     Optional<Subscription> findByUser_Id(UUID userId);
-    Optional<Subscription> findByUser_IdAndActiveTrue(UUID userId);  // ✅ Retourne Optional
+    
+    // ✅ Une seule définition - retourne Optional car un utilisateur n'a qu'un abonnement actif
+    Optional<Subscription> findByUser_IdAndActiveTrue(UUID userId);
+    
+    // ✅ Pour la liste des abonnements qui expirent
     List<Subscription> findByActiveTrueAndEndDateBefore(Instant now);
-    List<Subscription> findByUser_IdAndActiveTrue(UUID userId);
+    
+    // ✅ Vérification d'existence
     boolean existsByUser_IdAndActiveTrue(UUID userId);
 }
