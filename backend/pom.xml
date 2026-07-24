@@ -95,7 +95,7 @@
             <artifactId>spring-boot-starter-quartz</artifactId>
         </dependency>
 
-        <!-- MapStruct seulement -->
+        <!-- MapStruct seulement (pas de Lombok) -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
