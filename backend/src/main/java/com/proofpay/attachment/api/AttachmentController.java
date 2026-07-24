@@ -29,27 +29,26 @@ public class AttachmentController {
     public Attachment upload(@RequestParam String ownerType,
                               @RequestParam UUID ownerId,
                               @RequestParam("file") MultipartFile file) {
-        // L'auteur du téléversement est l'utilisateur authentifié, jamais une
-        // valeur fournie par le client (qui serait trivialement falsifiable).
         UUID uploadedBy = SecurityUtils.currentUserId();
-        return attachmentService.upload(ownerType, ownerId, uploadedBy, SecurityUtils.isAdmin(), file);
+        boolean isAdmin = SecurityUtils.isAdmin();
+        
+        return attachmentService.upload(ownerType, ownerId, uploadedBy, isAdmin, file);
     }
 
     @GetMapping
     public List<Attachment> list(@RequestParam String ownerType, @RequestParam UUID ownerId) {
         UUID requesterId = SecurityUtils.currentUserId();
-        return attachmentService.listFor(ownerType, ownerId, requesterId, SecurityUtils.isAdmin());
+        boolean isAdmin = SecurityUtils.isAdmin();
+        
+        return attachmentService.listFor(ownerType, ownerId, requesterId, isAdmin);
     }
 
-    /**
-     * Téléchargement du contenu d'une pièce jointe. L'accès est vérifié à
-     * partir du propriétaire (transaction/litige) réel de la pièce en base,
-     * pas d'un paramètre transmis par le client.
-     */
     @GetMapping("/{id}/download")
     public ResponseEntity<InputStreamResource> download(@PathVariable UUID id) {
         UUID requesterId = SecurityUtils.currentUserId();
-        AttachmentService.DownloadedFile file = attachmentService.download(id, requesterId, SecurityUtils.isAdmin());
+        boolean isAdmin = SecurityUtils.isAdmin();
+        
+        AttachmentService.DownloadedFile file = attachmentService.download(id, requesterId, isAdmin);
         Attachment attachment = file.attachment();
 
         String safeFilename = ContentDisposition.attachment()
