@@ -1,8 +1,10 @@
 package com.proofpay.user.domain;
 
-/** Contrôle d'accès par rôle : USER, ADMIN, SUPPORT (§9 spécifications techniques). */
+/** Contrôle d'accès par rôle : USER, SELLER, ADMIN, SUPPORT (§9 spécifications techniques). */
 public enum UserRole {
     USER,
+    SELLER,    // 🔥 AJOUTÉ
     ADMIN,
-    SUPPORT
+    SUPPORT,
+    BUYER      // 🔥 AJOUTÉ
 }
