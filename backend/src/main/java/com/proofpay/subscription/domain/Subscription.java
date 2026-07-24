@@ -2,6 +2,7 @@ package com.proofpay.subscription.domain;
 
 import com.proofpay.user.domain.User;
 import jakarta.persistence.*;
+
 import java.time.Instant;
 import java.util.UUID;
 
