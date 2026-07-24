@@ -7,7 +7,7 @@ RUN mvn -B dependency:go-offline
 
 COPY src ./src
 
-# Créer les fichiers storage (si nécessaire)
+# Créer les fichiers storage manquants
 RUN mkdir -p src/main/java/com/proofpay/attachment/storage && \
     echo 'package com.proofpay.attachment.storage;' > src/main/java/com/proofpay/attachment/storage/StorageProvider.java && \
     echo 'public interface StorageProvider {' >> src/main/java/com/proofpay/attachment/storage/StorageProvider.java && \
@@ -16,7 +16,7 @@ RUN mkdir -p src/main/java/com/proofpay/attachment/storage && \
     echo '    void delete(String storagePath) throws Exception;' >> src/main/java/com/proofpay/attachment/storage/StorageProvider.java && \
     echo '}' >> src/main/java/com/proofpay/attachment/storage/StorageProvider.java
 
-# Compilation simple
+# Compilation simple (plus de Lombok)
 RUN mvn -B clean package -DskipTests
 
 # --- Run stage ---
