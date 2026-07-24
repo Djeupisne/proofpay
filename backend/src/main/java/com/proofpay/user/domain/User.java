@@ -107,76 +107,61 @@ public class User {
         return isSeller && status == UserStatus.ACTIVE && verifiedSeller && approvedSeller;
     }
 
-    // ✅ Getters et setters avec valeurs par défaut pour éviter les NullPointerException
-    public BigDecimal getRating() {
-        return rating != null ? rating : BigDecimal.ZERO;
+    // ✅ Setters explicites pour les champs utilisés par AuthController
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public void setRating(BigDecimal rating) {
-        this.rating = rating;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
+    }
+
+    public void setLastLoginAt(Instant lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
+    // ✅ Getters avec valeurs par défaut
+    public BigDecimal getRating() {
+        return rating != null ? rating : BigDecimal.ZERO;
     }
 
     public Integer getTransactionsCount() {
         return transactionsCount != null ? transactionsCount : 0;
     }
 
-    public void setTransactionsCount(Integer transactionsCount) {
-        this.transactionsCount = transactionsCount;
-    }
-
     public Integer getDisputesOpenedCount() {
         return disputesOpenedCount != null ? disputesOpenedCount : 0;
-    }
-
-    public void setDisputesOpenedCount(Integer disputesOpenedCount) {
-        this.disputesOpenedCount = disputesOpenedCount;
     }
 
     public Integer getDisputesLostCount() {
         return disputesLostCount != null ? disputesLostCount : 0;
     }
 
-    public void setDisputesLostCount(Integer disputesLostCount) {
-        this.disputesLostCount = disputesLostCount;
-    }
-
     public boolean isSeller() {
         return isSeller;
-    }
-
-    public void setSeller(boolean seller) {
-        isSeller = seller;
     }
 
     public boolean isBuyer() {
         return isBuyer;
     }
 
-    public void setBuyer(boolean buyer) {
-        isBuyer = buyer;
-    }
-
     public boolean isVerifiedSeller() {
         return verifiedSeller;
     }
 
-    public void setVerifiedSeller(boolean verifiedSeller) {
-        this.verifiedSeller = verifiedSeller;
-    }
-
     public boolean isApprovedSeller() {
         return approvedSeller;
-    }
-
-    public void setApprovedSeller(boolean approvedSeller) {
-        this.approvedSeller = approvedSeller;
-    }
-
-    public UserStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(UserStatus status) {
-        this.status = status;
     }
 }
