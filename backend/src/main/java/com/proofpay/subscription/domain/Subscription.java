@@ -49,11 +49,7 @@ public class Subscription {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    public enum SubscriptionPlan {
-        BASIC,
-        PRO,
-        PREMIUM
-    }
+    // ========== MÉTHODES ==========
 
     public boolean isActive() {
         return active && (endDate == null || Instant.now().isBefore(endDate));
@@ -61,5 +57,22 @@ public class Subscription {
 
     public boolean isExpired() {
         return endDate != null && Instant.now().isAfter(endDate);
+    }
+
+    // ✅ Setters explicites pour les champs utilisés par SubscriptionService
+    public void setEndDate(Instant endDate) {
+        this.endDate = endDate;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public void setAutoRenew(boolean autoRenew) {
+        this.autoRenew = autoRenew;
     }
 }
