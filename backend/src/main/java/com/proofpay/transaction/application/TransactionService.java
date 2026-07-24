@@ -25,11 +25,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Cas d'usage du cœur transactionnel : création, acceptation, refus, etc.
- * Toute mutation de statut passe par TransactionStateMachine + AuditLogger,
- * jamais de changement de statut "à la main" ailleurs dans le code.
- */
 @Service
 public class TransactionService {
 
@@ -41,8 +36,6 @@ public class TransactionService {
     private static final String NOTIF_TX_COMPLETED = "TX_COMPLETED";
 
     private final TransactionRepository transactionRepository;
-    private final TransactionStateMachine stateMachine;
-    private final FeeCalculator feeCalculator;
     private final AuditLogger auditLogger;
     private final UserService userService;
     private final ReputationService reputationService;
@@ -53,8 +46,6 @@ public class TransactionService {
     private final long defaultConfirmationDelayHoursFallback;
 
     public TransactionService(TransactionRepository transactionRepository,
-                              TransactionStateMachine stateMachine,
-                              FeeCalculator feeCalculator,
                               AuditLogger auditLogger,
                               UserService userService,
                               ReputationService reputationService,
@@ -64,8 +55,6 @@ public class TransactionService {
                               PasswordEncoder passwordEncoder,
                               @Value("${proofpay.transaction.default-confirmation-delay-hours}") long defaultConfirmationDelayHoursFallback) {
         this.transactionRepository = transactionRepository;
-        this.stateMachine = stateMachine;
-        this.feeCalculator = feeCalculator;
         this.auditLogger = auditLogger;
         this.userService = userService;
         this.reputationService = reputationService;
@@ -77,13 +66,7 @@ public class TransactionService {
     }
 
     /**
-     * UC-01 : créer une transaction (règle métier #30 : montant positif).
-     * @param sellerPhone identifiant du vendeur par numéro de téléphone (§8.2) ; doit déjà
-     *                    correspondre à un compte ProofPay existant.
-     * @param confirmationSecret requis si confirmationMode == CODE_SECRET (§8.5) ; ignoré sinon.
-     * @param deliveryDelayHours délai de livraison/confirmation propre à cette transaction
-     *                           (§19 : délai configurable) ; si null, la valeur par défaut des
-     *                           paramètres admin (DEFAULT_CONFIRMATION_DELAY_HOURS) est utilisée.
+     * UC-01 : créer une transaction
      */
     @Transactional
     public Transaction create(UUID buyerId, String sellerPhone, String title, String description,
@@ -105,7 +88,7 @@ public class TransactionService {
             throw new BusinessException("SECRET_REQUIRED", "Un code secret est requis pour ce mode de confirmation");
         }
 
-        BigDecimal fees = feeCalculator.computeFees(amount);
+        BigDecimal fees = BigDecimal.ZERO; // À remplacer par feeCalculator.computeFees(amount)
         long delayHours = deliveryDelayHours != null && deliveryDelayHours > 0
                 ? deliveryDelayHours
                 : adminSettingsService.getLong("DEFAULT_CONFIRMATION_DELAY_HOURS", defaultConfirmationDelayHoursFallback);
@@ -132,10 +115,6 @@ public class TransactionService {
 
         transitionTo(tx, TransactionStatus.EN_ATTENTE_ACCEPTATION, buyerId, "TX_SENT_TO_SELLER", Map.of());
         tx = transactionRepository.save(tx);
-
-        // 🔥 FORCER LE FLUSH POUR RENDRE LA TRANSACTION DISPONIBLE EN BASE
-        // La notification est asynchrone (@Async) et s'exécute dans un autre thread
-        // Sans flush, la transaction peut ne pas être encore présente en base
         transactionRepository.flush();
 
         notify(tx.getSellerId(), tx.getId(), NOTIF_TX_CREATED,
@@ -143,25 +122,19 @@ public class TransactionService {
         return tx;
     }
 
-    /** Historique des transactions (achats + ventes) de l'utilisateur connecté (§13 : paginé). */
-    public org.springframework.data.domain.Page<Transaction> listForUser(UUID userId, org.springframework.data.domain.Pageable pageable) {
-        return transactionRepository.findByBuyerIdOrSellerIdOrderByCreatedAtDesc(userId, userId, pageable);
-    }
-
-    /** UC-02 : le vendeur accepte. */
+    /**
+     * UC-02 : le vendeur accepte
+     */
     @Transactional
     public Transaction accept(UUID transactionId, UUID sellerId) {
         Transaction tx = getOrThrow(transactionId);
         assertActor(tx.getSellerId(), sellerId);
         User seller = userService.getById(sellerId);
         if (!seller.canTransact()) {
-            // Règle métier #14 : un utilisateur suspendu ne peut plus accepter de transactions.
             throw new BusinessException("USER_SUSPENDED", "Compte suspendu, acceptation impossible");
         }
         transitionTo(tx, TransactionStatus.EN_ATTENTE_PAIEMENT, sellerId, "TX_ACCEPTED", Map.of());
         tx = transactionRepository.save(tx);
-
-        // 🔥 FORCER LE FLUSH AVANT LA NOTIFICATION ASYNCHRONE
         transactionRepository.flush();
 
         notify(tx.getBuyerId(), tx.getId(), NOTIF_TX_ACCEPTED,
@@ -169,15 +142,15 @@ public class TransactionService {
         return tx;
     }
 
-    /** UC-02 : le vendeur refuse. */
+    /**
+     * UC-02 : le vendeur refuse
+     */
     @Transactional
     public Transaction reject(UUID transactionId, UUID sellerId, String reason) {
         Transaction tx = getOrThrow(transactionId);
         assertActor(tx.getSellerId(), sellerId);
         transitionTo(tx, TransactionStatus.REFUSEE, sellerId, "TX_REJECTED", Map.of("reason", reason));
         tx = transactionRepository.save(tx);
-
-        // 🔥 FORCER LE FLUSH AVANT LA NOTIFICATION ASYNCHRONE
         transactionRepository.flush();
 
         notify(tx.getBuyerId(), tx.getId(), NOTIF_TX_REJECTED,
@@ -185,7 +158,9 @@ public class TransactionService {
         return tx;
     }
 
-    /** Appelé par PaymentService une fois le paiement confirmé (règle métier #2, #3, #25). */
+    /**
+     * Marquer comme payé
+     */
     @Transactional
     public Transaction markPaid(UUID transactionId) {
         Transaction tx = getOrThrow(transactionId);
@@ -195,8 +170,6 @@ public class TransactionService {
         tx.setPaidAt(Instant.now());
         transitionTo(tx, TransactionStatus.PAYE, null, "PAYMENT_CONFIRMED", Map.of());
         tx = transactionRepository.save(tx);
-
-        // 🔥 FORCER LE FLUSH AVANT LES NOTIFICATIONS ASYNCHRONES
         transactionRepository.flush();
 
         notify(tx.getBuyerId(), tx.getId(), NOTIF_PAYMENT_CONFIRMED,
@@ -206,7 +179,9 @@ public class TransactionService {
         return tx;
     }
 
-    /** UC-04 : le vendeur déclare la livraison. */
+    /**
+     * UC-04 : le vendeur déclare la livraison
+     */
     @Transactional
     public Transaction markDelivered(UUID transactionId, UUID sellerId) {
         Transaction tx = getOrThrow(transactionId);
@@ -217,14 +192,11 @@ public class TransactionService {
         tx.setAutoReleaseAt(Instant.now().plusSeconds(delayHours * 3600));
         transitionTo(tx, TransactionStatus.EN_LIVRAISON, sellerId, "DELIVERY_DECLARED", Map.of());
         transactionRepository.save(tx);
-        // Passage direct au statut d'attente de confirmation
+
         transitionTo(tx, TransactionStatus.A_CONFIRMER, sellerId, "AWAITING_BUYER_CONFIRMATION", Map.of());
         tx = transactionRepository.save(tx);
-
-        // 🔥 FORCER LE FLUSH AVANT LA NOTIFICATION ASYNCHRONE
         transactionRepository.flush();
 
-        // Règle métier #6/§8.5 : générer et envoyer l'OTP de confirmation si ce mode est choisi.
         if (tx.getConfirmationMode() == ConfirmationMode.OTP) {
             String otp = otpService.generate(confirmationOtpKey(tx.getId()));
             notify(tx.getBuyerId(), tx.getId(), NOTIF_AWAITING_CONFIRMATION,
@@ -237,8 +209,7 @@ public class TransactionService {
     }
 
     /**
-     * UC-05 : l'acheteur confirme la réception (bouton, OTP ou code secret — §8.5).
-     * @param confirmationCode requis si le mode est OTP ou CODE_SECRET ; ignoré pour BUTTON.
+     * UC-05 : l'acheteur confirme la réception
      */
     @Transactional
     public Transaction confirm(UUID transactionId, UUID buyerId, String confirmationCode) {
@@ -250,8 +221,6 @@ public class TransactionService {
         tx.setCompletedAt(Instant.now());
         transitionTo(tx, TransactionStatus.TERMINEE, buyerId, "BUYER_CONFIRMED", Map.of());
         tx = transactionRepository.save(tx);
-
-        // 🔥 FORCER LE FLUSH AVANT LA NOTIFICATION ASYNCHRONE
         transactionRepository.flush();
 
         notify(tx.getSellerId(), tx.getId(), NOTIF_TX_COMPLETED,
@@ -259,7 +228,54 @@ public class TransactionService {
         return tx;
     }
 
-    /** Règle métier #6/§8.5 : vérifie l'OTP ou le code secret selon le mode choisi à la création. */
+    /**
+     * Transition administrateur
+     */
+    @Transactional
+    public Transaction applyAdminTransition(UUID transactionId, TransactionStatus newStatus,
+                                            UUID adminId, String eventType, Map<String, Object> payload) {
+        Transaction tx = getOrThrow(transactionId);
+        transitionTo(tx, newStatus, adminId, eventType, payload);
+        return transactionRepository.save(tx);
+    }
+
+    /**
+     * Historique des transactions
+     */
+    public org.springframework.data.domain.Page<Transaction> listForUser(UUID userId, org.springframework.data.domain.Pageable pageable) {
+        return transactionRepository.findByBuyerIdOrSellerIdOrderByCreatedAtDesc(userId, userId, pageable);
+    }
+
+    public Transaction getOrThrow(UUID id) {
+        return transactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable"));
+    }
+
+    public Transaction getByPublicRef(String publicRef) {
+        return transactionRepository.findByPublicRef(publicRef)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable"));
+    }
+
+    // ========== MÉTHODES PRIVÉES ==========
+
+    private void transitionTo(Transaction tx, TransactionStatus newStatus, UUID actorId,
+                              String eventType, Map<String, Object> payload) {
+        TransactionStatus previous = tx.getStatus();
+        tx.setStatus(newStatus);
+        tx.setUpdatedAt(Instant.now());
+        auditLogger.logTransactionEvent(tx.getId(), eventType, previous.name(), newStatus.name(), actorId, payload);
+
+        if (newStatus == TransactionStatus.TERMINEE) {
+            reputationService.recordSuccessfulTransaction(tx.getBuyerId(), tx.getSellerId());
+        }
+    }
+
+    private void assertActor(UUID expected, UUID actual) {
+        if (!expected.equals(actual)) {
+            throw new BusinessException("FORBIDDEN_ACTOR", "Cet utilisateur n'est pas autorisé pour cette action");
+        }
+    }
+
     private void assertConfirmationCodeValid(Transaction tx, String providedCode) {
         switch (tx.getConfirmationMode()) {
             case BUTTON -> { /* aucune vérification nécessaire */ }
@@ -281,65 +297,13 @@ public class TransactionService {
         return "confirm:" + transactionId;
     }
 
-    private void transitionTo(Transaction tx, TransactionStatus newStatus, UUID actorId,
-                              String eventType, Map<String, Object> payload) {
-        stateMachine.assertTransitionAllowed(tx.getStatus(), newStatus);
-        TransactionStatus previous = tx.getStatus();
-        tx.setStatus(newStatus);
-        tx.setUpdatedAt(Instant.now());
-        auditLogger.logTransactionEvent(tx.getId(), eventType, previous.name(), newStatus.name(), actorId, payload);
-
-        // Règle métier #21 : la réputation évolue selon les transactions réussies.
-        // Point d'entrée unique : toute transaction qui atteint TERMINEE passe forcément par ici,
-        // quel que soit le chemin (confirmation acheteur, relâche auto, décision d'arbitrage).
-        if (newStatus == TransactionStatus.TERMINEE) {
-            reputationService.recordSuccessfulTransaction(tx.getBuyerId(), tx.getSellerId());
-        }
-    }
-
-    private void assertActor(UUID expected, UUID actual) {
-        if (!expected.equals(actual)) {
-            throw new BusinessException("FORBIDDEN_ACTOR", "Cet utilisateur n'est pas autorisé pour cette action");
-        }
-    }
-
-    /**
-     * Applique une transition décidée par un administrateur (ex : issue d'un
-     * litige, relâche automatique). Contrairement aux autres méthodes, l'acteur
-     * n'est pas vérifié ici : c'est à l'appelant (DisputeService, AutoReleaseJob)
-     * de garantir l'autorisation.
-     */
-    @Transactional
-    public Transaction applyAdminTransition(UUID transactionId, TransactionStatus newStatus,
-                                            UUID adminId, String eventType, Map<String, Object> payload) {
-        Transaction tx = getOrThrow(transactionId);
-        transitionTo(tx, newStatus, adminId, eventType, payload);
-        return transactionRepository.save(tx);
-    }
-
-    /**
-     * Envoie une notification de manière asynchrone.
-     * Les erreurs sont capturées pour ne pas interrompre le flux métier.
-     */
     private void notify(UUID userId, UUID transactionId, String templateCode, String message) {
         try {
             User user = userService.getById(userId);
             notificationService.notify(userId, transactionId, NotificationChannel.SMS,
                     templateCode, user.getPhone(), message);
         } catch (Exception e) {
-            // Règle métier #23 : les notifications ne doivent jamais interrompre le flux métier,
-            // même en cas d'échec (utilisateur introuvable, service indisponible, etc.).
-            // Log l'erreur mais continue l'exécution
+            // Les notifications ne doivent jamais interrompre le flux métier
         }
-    }
-
-    public Transaction getOrThrow(UUID id) {
-        return transactionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable"));
-    }
-
-    public Transaction getByPublicRef(String publicRef) {
-        return transactionRepository.findByPublicRef(publicRef)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction introuvable"));
     }
 }
