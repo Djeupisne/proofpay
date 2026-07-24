@@ -69,7 +69,7 @@ public class AuthController {
                 });
 
         if (request.email() != null && !request.email().isEmpty()) {
-            user.setEmail(request.email());  // ✅ Maintenant disponible
+            user.setEmail(request.email());
             userRepository.save(user);
         }
 
