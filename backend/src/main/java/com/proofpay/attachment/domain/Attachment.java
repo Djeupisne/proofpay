@@ -45,4 +45,37 @@ public class Attachment {
 
     @Column(name = "created_at")
     private Instant createdAt;
+
+    // ✅ Getters explicites pour les champs utilisés par AttachmentController
+    public String getOriginalName() {
+        return originalName;
+    }
+
+    public String getMimeType() {
+        return mimeType;
+    }
+
+    public Long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public String getStoragePath() {
+        return storagePath;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
+    }
+
+    public String getOwnerType() {
+        return ownerType;
+    }
+
+    public UUID getUploadedBy() {
+        return uploadedBy;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }
