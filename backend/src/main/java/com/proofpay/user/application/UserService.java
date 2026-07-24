@@ -35,6 +35,8 @@ public class UserService {
                 .collect(Collectors.toSet());
     }
 
+    // ========== AUTHENTIFICATION ==========
+
     /** Inscription/connexion par numéro de téléphone (§8.1 spécifications fonctionnelles). */
     public String requestOtp(String rawPhone) {
         String phone = PhoneNormalizer.normalize(rawPhone);
@@ -47,7 +49,9 @@ public class UserService {
                         .status(UserStatus.PENDING_VERIFICATION)
                         .role(UserRole.USER)
                         .preferredLanguage("fr")
-                        .preferredChannel(NotificationChannel.SMS) // 🔥 Canal par défaut
+                        .preferredChannel(NotificationChannel.SMS)
+                        .isSeller(false)
+                        .isBuyer(true)
                         .transactionsCount(0)
                         .disputesOpenedCount(0)
                         .disputesLostCount(0)
@@ -79,23 +83,93 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    // ========== RECHERCHE UTILISATEURS ==========
+
     public User getById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
     }
 
-    /** Résout un vendeur par numéro de téléphone (§8.2). */
     public User getByPhone(String rawPhone) {
         String phone = PhoneNormalizer.normalize(rawPhone);
         if (!PhoneNormalizer.isValid(phone)) {
-            throw new BusinessException("INVALID_PHONE", "Numéro de téléphone du vendeur invalide");
+            throw new BusinessException("INVALID_PHONE", "Numéro de téléphone invalide");
         }
         return userRepository.findByPhone(phone)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Aucun compte ProofPay n'est associé à ce numéro. Le vendeur doit d'abord s'inscrire."));
+                .orElseThrow(() -> new ResourceNotFoundException("Aucun compte ProofPay n'est associé à ce numéro."));
     }
 
-    // 🔥 NOUVELLE MÉTHODE : Mettre à jour le canal préféré
+    // ========== GESTION VENDEURS ==========
+
+    /**
+     * Inscription d'un nouveau vendeur avec profil complet
+     */
+    public User registerSeller(String phone, String email, String firstName, String lastName, 
+                                String businessName, String businessType) {
+        // Vérifier si le numéro existe déjà
+        if (userRepository.findByPhone(phone).isPresent()) {
+            throw new BusinessException("USER_EXISTS", "Ce numéro est déjà utilisé.");
+        }
+
+        User user = User.builder()
+                .phone(phone)
+                .email(email)
+                .firstName(firstName)
+                .lastName(lastName)
+                .displayName(businessName)
+                .status(UserStatus.PENDING_VERIFICATION)
+                .role(UserRole.SELLER)
+                .isSeller(true)
+                .isBuyer(false)
+                .verifiedSeller(false)
+                .approvedSeller(false)
+                .preferredLanguage("fr")
+                .preferredChannel(NotificationChannel.SMS)
+                .transactionsCount(0)
+                .disputesOpenedCount(0)
+                .disputesLostCount(0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        
+        return userRepository.save(user);
+    }
+
+    /**
+     * Vérifier si un numéro est enregistré comme vendeur
+     */
+    public boolean isSeller(String phone) {
+        String normalizedPhone = PhoneNormalizer.normalize(phone);
+        return userRepository.findByPhone(normalizedPhone)
+                .map(User::isSeller)
+                .orElse(false);
+    }
+
+    /**
+     * Vérifier si un vendeur est actif et vérifié
+     */
+    public boolean isActiveSeller(UUID userId) {
+        User user = getById(userId);
+        return user.isSeller() && user.getStatus() == UserStatus.ACTIVE && user.isVerifiedSeller();
+    }
+
+    /**
+     * Approuver un vendeur (par un administrateur)
+     */
+    public User approveSeller(UUID userId) {
+        User user = getById(userId);
+        if (!user.isSeller()) {
+            throw new BusinessException("NOT_SELLER", "Cet utilisateur n'est pas un vendeur");
+        }
+        user.setVerifiedSeller(true);
+        user.setApprovedSeller(true);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setUpdatedAt(Instant.now());
+        return userRepository.save(user);
+    }
+
+    // ========== GESTION DES CANAUX ==========
+
     public User updatePreferredChannel(UUID userId, NotificationChannel channel) {
         User user = getById(userId);
         if (channel == null) {
@@ -106,27 +180,25 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // 🔥 NOUVELLE MÉTHODE : Obtenir le canal préféré d'un utilisateur
     public NotificationChannel getPreferredChannel(UUID userId) {
         User user = getById(userId);
         return user.getPreferredChannel() != null ? user.getPreferredChannel() : NotificationChannel.SMS;
     }
 
-    /** Règle métier #14 et #22 : suspension manuelle ou automatique d'un compte. */
+    // ========== GESTION DES COMPTES ==========
+
     public void suspend(UUID userId) {
         User user = getById(userId);
         user.setStatus(UserStatus.SUSPENDED);
         userRepository.save(user);
     }
 
-    /** Gestion des rôles par un administrateur déjà en place (cf. AdminController). */
     public User updateRole(UUID userId, UserRole role) {
         User user = getById(userId);
         user.setRole(role);
         return userRepository.save(user);
     }
 
-    /** Complète le profil (§8.1) — champs facultatifs, ignorés s'ils sont null. */
     public User updateProfile(UUID userId, String firstName, String lastName, String email, String preferredLanguage) {
         User user = getById(userId);
         if (firstName != null) user.setFirstName(firstName);
@@ -137,9 +209,8 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    /**
-     * Profil public réduit d'un utilisateur (§8.5 personas).
-     */
+    // ========== PROFIL PUBLIC ==========
+
     public PublicProfile publicProfileOf(UUID userId) {
         User user = getById(userId);
         String name = user.getDisplayName() != null ? user.getDisplayName()
@@ -149,13 +220,62 @@ public class UserService {
                 name.trim(),
                 user.getStatus() == UserStatus.ACTIVE,
                 user.getRating(),
-                user.getTransactionsCount() == null ? 0 : user.getTransactionsCount());
+                user.getTransactionsCount() == null ? 0 : user.getTransactionsCount(),
+                user.isSeller(),
+                user.isVerifiedSeller(),
+                user.isApprovedSeller()
+        );
+    }
+
+    /**
+     * Profil public spécifique pour les vendeurs (avec plus d'informations)
+     */
+    public SellerPublicProfile sellerPublicProfileOf(UUID userId) {
+        User user = getById(userId);
+        if (!user.isSeller()) {
+            throw new BusinessException("NOT_SELLER", "Cet utilisateur n'est pas un vendeur");
+        }
+        return new SellerPublicProfile(
+                user.getId(),
+                user.getDisplayName() != null ? user.getDisplayName() : user.getFirstName() + " " + user.getLastName(),
+                user.getPhone(),
+                user.getEmail(),
+                user.getRating(),
+                user.getTransactionsCount() == null ? 0 : user.getTransactionsCount(),
+                user.isVerifiedSeller(),
+                user.isApprovedSeller(),
+                user.getStatus() == UserStatus.ACTIVE,
+                user.getCreatedAt()
+        );
     }
 
     private static String nullToEmpty(String s) {
         return s == null ? "" : s;
     }
 
-    public record PublicProfile(UUID id, String displayName, boolean verified,
-                                 java.math.BigDecimal rating, int transactionsCount) {}
+    // ========== RECORDS ==========
+
+    public record PublicProfile(
+            UUID id, 
+            String displayName, 
+            boolean verified,
+            java.math.BigDecimal rating, 
+            int transactionsCount,
+            boolean isSeller,
+            boolean isVerifiedSeller,
+            boolean isApprovedSeller
+    ) {}
+
+    public record SellerPublicProfile(
+            UUID id,
+            String displayName,
+            String phone,
+            String email,
+            java.math.BigDecimal rating,
+            int transactionsCount,
+            boolean isVerified,
+            boolean isApproved,
+            boolean isActive,
+            Instant createdAt
+    ) {}
 }
