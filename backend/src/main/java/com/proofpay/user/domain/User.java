@@ -48,35 +48,33 @@ public class User {
     @Builder.Default
     private NotificationChannel preferredChannel = NotificationChannel.SMS;
 
-    // 🔥 NOUVEAU : Rôle utilisateur (BUYER, SELLER, ADMIN)
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private UserRole role;
-
-    // 🔥 NOUVEAU : Statut du compte utilisateur
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private UserStatus status;
 
-    // 🔥 NOUVEAU : Indique si c'est un vendeur
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserRole role;
+
+    // 🔥 NOUVEAUX CHAMPS
     @Column(name = "is_seller", nullable = false)
     @Builder.Default
     private boolean isSeller = false;
 
-    // 🔥 NOUVEAU : Indique si c'est un acheteur
     @Column(name = "is_buyer", nullable = false)
     @Builder.Default
     private boolean isBuyer = true;
 
-    // 🔥 NOUVEAU : Indique si le vendeur est vérifié
     @Column(name = "is_verified_seller")
     @Builder.Default
     private boolean verifiedSeller = false;
 
-    // 🔥 NOUVEAU : Indique si le vendeur est approuvé
     @Column(name = "is_approved_seller")
     @Builder.Default
     private boolean approvedSeller = false;
+
+    @Column(name = "seller_verified_at")
+    private Instant sellerVerifiedAt;
 
     private BigDecimal rating;
 
@@ -103,13 +101,7 @@ public class User {
         return status == UserStatus.ACTIVE;
     }
 
-    /** Vérifie si l'utilisateur est un vendeur actif */
     public boolean isActiveSeller() {
-        return isSeller && status == UserStatus.ACTIVE;
-    }
-
-    /** Vérifie si l'utilisateur est un vendeur vérifié */
-    public boolean isVerifiedSeller() {
-        return isSeller && verifiedSeller && approvedSeller;
+        return isSeller && status == UserStatus.ACTIVE && verifiedSeller && approvedSeller;
     }
 }
