@@ -2,16 +2,15 @@ package com.proofpay.attachment.api;
 
 import com.proofpay.attachment.application.AttachmentService;
 import com.proofpay.attachment.domain.Attachment;
-import com.proofpay.security.util.SecurityUtils;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.ContentDisposition;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,42 +24,42 @@ public class AttachmentController {
         this.attachmentService = attachmentService;
     }
 
-    @PostMapping(consumes = "multipart/form-data")
-    public Attachment upload(@RequestParam String ownerType,
-                              @RequestParam UUID ownerId,
-                              @RequestParam("file") MultipartFile file) {
-        UUID uploadedBy = SecurityUtils.currentUserId();
-        boolean isAdmin = SecurityUtils.isAdmin();
+    @PostMapping("/upload")
+    public ResponseEntity<Attachment> uploadAttachment(
+            @RequestParam("ownerType") String ownerType,
+            @RequestParam("ownerId") UUID ownerId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("uploadedBy") UUID uploadedBy) throws Exception {
         
-        return attachmentService.upload(ownerType, ownerId, uploadedBy, isAdmin, file);
+        Attachment attachment = attachmentService.uploadAttachment(ownerType, ownerId, file, uploadedBy);
+        return ResponseEntity.ok(attachment);
     }
 
-    @GetMapping
-    public List<Attachment> list(@RequestParam String ownerType, @RequestParam UUID ownerId) {
-        UUID requesterId = SecurityUtils.currentUserId();
-        boolean isAdmin = SecurityUtils.isAdmin();
+    @GetMapping("/owner/{ownerType}/{ownerId}")
+    public ResponseEntity<List<Attachment>> getAttachmentsByOwner(
+            @PathVariable String ownerType,
+            @PathVariable UUID ownerId) {
         
-        return attachmentService.listFor(ownerType, ownerId, requesterId, isAdmin);
+        List<Attachment> attachments = attachmentService.getAttachmentsByOwner(ownerType, ownerId);
+        return ResponseEntity.ok(attachments);
     }
 
-    @GetMapping("/{id}/download")
-    public ResponseEntity<InputStreamResource> download(@PathVariable UUID id) {
-        UUID requesterId = SecurityUtils.currentUserId();
-        boolean isAdmin = SecurityUtils.isAdmin();
+    @GetMapping("/{attachmentId}")
+    public ResponseEntity<Resource> downloadAttachment(@PathVariable UUID attachmentId) throws Exception {
+        InputStream inputStream = attachmentService.downloadAttachment(attachmentId);
+        Attachment attachment = attachmentService.getAttachment(attachmentId);
         
-        AttachmentService.DownloadedFile file = attachmentService.download(id, requesterId, isAdmin);
-        Attachment attachment = file.attachment();
-
-        String safeFilename = ContentDisposition.attachment()
-                .filename(attachment.getOriginalName(), StandardCharsets.UTF_8)
-                .build()
-                .toString();
-
+        InputStreamResource resource = new InputStreamResource(inputStream);
+        
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(attachment.getMimeType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, safeFilename)
-                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(attachment.getSizeBytes()))
-                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=0, no-cache")
-                .body(new InputStreamResource(file.content()));
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + attachment.getOriginalName() + "\"")
+                .body(resource);
+    }
+
+    @DeleteMapping("/{attachmentId}")
+    public ResponseEntity<Void> deleteAttachment(@PathVariable UUID attachmentId) throws Exception {
+        attachmentService.deleteAttachment(attachmentId);
+        return ResponseEntity.noContent().build();
     }
 }
