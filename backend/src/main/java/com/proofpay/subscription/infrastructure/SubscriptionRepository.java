@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
     Optional<Subscription> findByUser(User user);
     Optional<Subscription> findByUser_Id(UUID userId);
+    Optional<Subscription> findByUser_IdAndActiveTrue(UUID userId);  // ✅ Retourne Optional
     List<Subscription> findByActiveTrueAndEndDateBefore(Instant now);
     List<Subscription> findByUser_IdAndActiveTrue(UUID userId);
     boolean existsByUser_IdAndActiveTrue(UUID userId);
