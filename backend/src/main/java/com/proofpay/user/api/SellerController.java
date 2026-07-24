@@ -2,10 +2,14 @@ package com.proofpay.user.api;
 
 import com.proofpay.common.exception.BusinessException;
 import com.proofpay.common.util.PhoneNormalizer;
+import com.proofpay.subscription.domain.Subscription;
+import com.proofpay.subscription.domain.SubscriptionPlan;
+import com.proofpay.subscription.infrastructure.SubscriptionRepository;
 import com.proofpay.user.application.UserService;
+import com.proofpay.user.domain.SellerProfile;
 import com.proofpay.user.domain.User;
-import com.proofpay.user.domain.UserRole;
 import com.proofpay.user.domain.UserStatus;
+import com.proofpay.user.infrastructure.SellerProfileRepository;
 import com.proofpay.user.infrastructure.UserRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -25,10 +29,17 @@ public class SellerController {
 
     private final UserService userService;
     private final UserRepository userRepository;
+    private final SellerProfileRepository sellerProfileRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
-    public SellerController(UserService userService, UserRepository userRepository) {
+    public SellerController(UserService userService,
+                            UserRepository userRepository,
+                            SellerProfileRepository sellerProfileRepository,
+                            SubscriptionRepository subscriptionRepository) {
         this.userService = userService;
         this.userRepository = userRepository;
+        this.sellerProfileRepository = sellerProfileRepository;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     /**
@@ -51,7 +62,7 @@ public class SellerController {
                 .lastName(request.lastName())
                 .displayName(request.businessName())
                 .status(UserStatus.PENDING_VERIFICATION)
-                .role(UserRole.SELLER)
+                .role(com.proofpay.user.domain.UserRole.SELLER)
                 .isSeller(true)
                 .isBuyer(false)
                 .verifiedSeller(false)
@@ -65,12 +76,51 @@ public class SellerController {
                 .build();
         user = userRepository.save(user);
 
-        // TODO: Créer SellerProfile et Subscription dans les prochaines étapes
+        // 2. Créer le profil vendeur
+        SellerProfile profile = SellerProfile.builder()
+                .user(user)
+                .businessName(request.businessName())
+                .businessType(request.businessType())
+                .registrationNumber(request.registrationNumber())
+                .taxId(request.taxId())
+                .businessAddress(request.businessAddress())
+                .businessPhone(request.businessPhone())
+                .businessEmail(request.businessEmail())
+                .website(request.website())
+                .description(request.description())
+                .idDocumentUrl(request.idDocumentUrl())
+                .registrationDocumentUrl(request.registrationDocumentUrl())
+                .verificationStatus(SellerProfile.VerificationStatus.PENDING)
+                .verified(false)
+                .approved(false)
+                .rating(0.0)
+                .totalTransactions(0)
+                .completedTransactions(0)
+                .successRate(0.0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        sellerProfileRepository.save(profile);
+
+        // 3. Créer l'abonnement
+        SubscriptionPlan plan = SubscriptionPlan.valueOf(request.subscriptionPlan().toUpperCase());
+        Subscription subscription = Subscription.builder()
+                .user(user)
+                .plan(plan)
+                .startDate(Instant.now())
+                .endDate(Instant.now().plusSeconds(30 * 24 * 60 * 60)) // 30 jours
+                .autoRenew(false)
+                .active(true)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        subscriptionRepository.save(subscription);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "message", "Vendeur enregistré avec succès. En attente de vérification.",
                 "userId", user.getId(),
-                "status", user.getStatus().name()
+                "verificationStatus", profile.getVerificationStatus().name(),
+                "subscriptionPlan", plan.name()
         ));
     }
 
@@ -85,7 +135,7 @@ public class SellerController {
             return userRepository.findByPhone(normalizedPhone)
                     .filter(User::isSeller)
                     .filter(user -> user.getStatus() == UserStatus.ACTIVE)
-                    .map(user -> ResponseEntity.ok(toSellerPublicProfile(user)))
+                    .map(user -> ResponseEntity.ok(userService.sellerPublicProfileOf(user.getId())))
                     .orElse(ResponseEntity.notFound().build());
         }
 
@@ -93,7 +143,7 @@ public class SellerController {
             return userRepository.findByEmail(email)
                     .filter(User::isSeller)
                     .filter(user -> user.getStatus() == UserStatus.ACTIVE)
-                    .map(user -> ResponseEntity.ok(toSellerPublicProfile(user)))
+                    .map(user -> ResponseEntity.ok(userService.sellerPublicProfileOf(user.getId())))
                     .orElse(ResponseEntity.notFound().build());
         }
 
@@ -109,32 +159,47 @@ public class SellerController {
         if (!user.isSeller() || user.getStatus() != UserStatus.ACTIVE) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(toSellerPublicProfile(user));
+        return ResponseEntity.ok(userService.sellerPublicProfileOf(sellerId));
     }
 
     /**
      * Vérifier si un numéro est enregistré comme vendeur
      */
     @GetMapping("/check")
-    public ResponseEntity<Map<String, Boolean>> checkSeller(@RequestParam String phone) {
+    public ResponseEntity<Map<String, Object>> checkSeller(@RequestParam String phone) {
         String normalizedPhone = PhoneNormalizer.normalize(phone);
-        boolean exists = userRepository.findByPhone(normalizedPhone)
-                .map(User::isSeller)
-                .orElse(false);
-        return ResponseEntity.ok(Map.of("isSeller", exists));
+        return userRepository.findByPhone(normalizedPhone)
+                .map(user -> ResponseEntity.ok(Map.of(
+                        "isSeller", user.isSeller(),
+                        "isActive", user.getStatus() == UserStatus.ACTIVE,
+                        "isVerified", user.isVerifiedSeller(),
+                        "displayName", user.getDisplayName()
+                )))
+                .orElse(ResponseEntity.ok(Map.of("isSeller", false)));
     }
 
-    private SellerPublicProfile toSellerPublicProfile(User user) {
-        return new SellerPublicProfile(
-                user.getId(),
-                user.getDisplayName() != null ? user.getDisplayName() : user.getFirstName() + " " + user.getLastName(),
-                user.getPhone(),
-                user.getEmail(),
-                user.getRating(),
-                user.getTransactionsCount() != null ? user.getTransactionsCount() : 0,
-                user.isVerifiedSeller(),
-                user.getStatus() == UserStatus.ACTIVE
-        );
+    /**
+     * Obtenir les statistiques d'un vendeur
+     */
+    @GetMapping("/{sellerId}/stats")
+    public ResponseEntity<?> getSellerStats(@PathVariable UUID sellerId) {
+        User user = userService.getById(sellerId);
+        if (!user.isSeller()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        SellerProfile profile = sellerProfileRepository.findByUser_Id(sellerId).orElse(null);
+        if (profile == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "totalTransactions", profile.getTotalTransactions(),
+                "completedTransactions", profile.getCompletedTransactions(),
+                "successRate", profile.getSuccessRate(),
+                "rating", profile.getRating(),
+                "verificationStatus", profile.getVerificationStatus().name()
+        ));
     }
 
     // ========== RECORDS ==========
@@ -152,17 +217,9 @@ public class SellerController {
             String businessPhone,
             String businessEmail,
             String website,
-            String description
-    ) {}
-
-    public record SellerPublicProfile(
-            UUID id,
-            String displayName,
-            String phone,
-            String email,
-            BigDecimal rating,
-            int transactionsCount,
-            boolean verified,
-            boolean active
+            String description,
+            String idDocumentUrl,
+            String registrationDocumentUrl,
+            @NotNull(message = "Le plan d'abonnement est obligatoire") String subscriptionPlan
     ) {}
 }
