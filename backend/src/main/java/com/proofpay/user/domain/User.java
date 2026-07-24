@@ -107,7 +107,24 @@ public class User {
         return isSeller && status == UserStatus.ACTIVE && verifiedSeller && approvedSeller;
     }
 
-    // ✅ Setters explicites pour les champs utilisés par AuthController
+    // ✅ Getters explicites pour AuthController
+    public UUID getId() {
+        return id;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
+
+    public NotificationChannel getPreferredChannel() {
+        return preferredChannel != null ? preferredChannel : NotificationChannel.SMS;
+    }
+
+    // ✅ Setters explicites
     public void setEmail(String email) {
         this.email = email;
     }
@@ -130,6 +147,10 @@ public class User {
 
     public void setLastLoginAt(Instant lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    public void setPreferredChannel(NotificationChannel preferredChannel) {
+        this.preferredChannel = preferredChannel;
     }
 
     // ✅ Getters avec valeurs par défaut
