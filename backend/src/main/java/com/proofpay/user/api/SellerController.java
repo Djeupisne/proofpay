@@ -59,7 +59,7 @@ public class SellerController {
                 .lastName(request.lastName())
                 .displayName(request.businessName())
                 .status(UserStatus.PENDING_VERIFICATION)
-                .role(UserRole.SELLER)  // ✅ Utiliser UserRole.SELLER
+                .role(UserRole.SELLER)
                 .isSeller(true)
                 .isBuyer(false)
                 .verifiedSeller(false)
@@ -73,12 +73,11 @@ public class SellerController {
                 .build();
         user = userRepository.save(user);
 
-        // 2. Créer le profil vendeur (à implémenter)
-        // 3. Créer l'abonnement
+        // 2. Créer l'abonnement
         SubscriptionPlan plan = SubscriptionPlan.valueOf(request.subscriptionPlan().toUpperCase());
         Subscription subscription = Subscription.builder()
                 .user(user)
-                .plan(plan)
+                .plan(plan)  // ✅ Utiliser SubscriptionPlan directement
                 .startDate(Instant.now())
                 .endDate(Instant.now().plusSeconds(30 * 24 * 60 * 60))
                 .autoRenew(false)
@@ -88,16 +87,19 @@ public class SellerController {
                 .build();
         subscriptionRepository.save(subscription);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                "message", "Vendeur enregistré avec succès. En attente de vérification.",
-                "userId", user.getId(),
-                "subscriptionPlan", plan.name()
-        ));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of(
+                        "message", "Vendeur enregistré avec succès. En attente de vérification.",
+                        "userId", user.getId(),
+                        "subscriptionPlan", plan.name()
+                ));
     }
 
     @GetMapping("/search")
-    public ResponseEntity<?> searchSellers(@RequestParam(required = false) String phone,
-                                            @RequestParam(required = false) String email) {
+    public ResponseEntity<Map<String, Object>> searchSellers(
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String email) {
+        
         if (phone != null && !phone.isEmpty()) {
             String normalizedPhone = PhoneNormalizer.normalize(phone);
             return userRepository.findByPhone(normalizedPhone)
@@ -108,7 +110,7 @@ public class SellerController {
         }
 
         if (email != null && !email.isEmpty()) {
-            return userRepository.findByEmail(email)  // ✅ Maintenant disponible
+            return userRepository.findByEmail(email)
                     .filter(User::isSeller)
                     .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                     .map(user -> ResponseEntity.ok(userService.sellerPublicProfileOf(user.getId())))
@@ -119,7 +121,7 @@ public class SellerController {
     }
 
     @GetMapping("/{sellerId}/public")
-    public ResponseEntity<?> getPublicProfile(@PathVariable UUID sellerId) {
+    public ResponseEntity<Map<String, Object>> getPublicProfile(@PathVariable UUID sellerId) {
         User user = userService.getById(sellerId);
         if (!user.isSeller() || user.getStatus() != UserStatus.ACTIVE) {
             return ResponseEntity.notFound().build();
