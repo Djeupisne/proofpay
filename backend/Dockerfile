@@ -1,5 +1,5 @@
 # --- Build stage ---
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Copier le pom.xml
@@ -64,14 +64,13 @@ RUN mkdir -p src/main/java/com/proofpay/attachment/storage && \
     echo '    }' >> src/main/java/com/proofpay/attachment/storage/LocalStorageProvider.java && \
     echo '}' >> src/main/java/com/proofpay/attachment/storage/LocalStorageProvider.java
 
-# Vérification
-RUN echo "=== Vérification du dossier storage ===" && ls -la src/main/java/com/proofpay/attachment/storage/
-
-# Compiler
-RUN mvn -B clean package -DskipTests
+# 🔥 FIX : Nettoyer et compiler avec Lombok activé
+RUN echo "=== Compilation avec Lombok ===" && \
+    mvn -B clean compile -DskipTests && \
+    mvn -B package -DskipTests
 
 # --- Run stage ---
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 RUN apk add --no-cache wget
