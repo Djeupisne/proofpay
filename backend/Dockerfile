@@ -64,10 +64,21 @@ RUN mkdir -p src/main/java/com/proofpay/attachment/storage && \
     echo '    }' >> src/main/java/com/proofpay/attachment/storage/LocalStorageProvider.java && \
     echo '}' >> src/main/java/com/proofpay/attachment/storage/LocalStorageProvider.java
 
-# 🔥 FIX : Nettoyer et compiler avec Lombok activé
+# 🔥 VÉRIFICATION : Afficher la version de Lombok
+RUN echo "=== Vérification de Lombok ===" && \
+    mvn dependency:tree | grep lombok || echo "Lombok non trouvé dans les dépendances"
+
+# 🔥 Compilation avec Lombok activé
 RUN echo "=== Compilation avec Lombok ===" && \
-    mvn -B clean compile -DskipTests && \
-    mvn -B package -DskipTests
+    mvn -B clean compile -DskipTests
+
+# Vérifier que les classes générées existent
+RUN echo "=== Vérification des classes générées ===" && \
+    ls -la target/classes/com/proofpay/user/domain/ || echo "Dossier non trouvé" && \
+    ls -la target/classes/com/proofpay/subscription/domain/ || echo "Dossier non trouvé"
+
+# Package
+RUN mvn -B package -DskipTests
 
 # --- Run stage ---
 FROM eclipse-temurin:17-jre-alpine
