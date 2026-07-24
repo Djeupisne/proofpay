@@ -23,9 +23,6 @@ public class SubscriptionService {
         this.userRepository = userRepository;
     }
 
-    /**
-     * Créer un abonnement pour un vendeur
-     */
     public Subscription createSubscription(UUID userId, SubscriptionPlan plan, int durationDays) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
@@ -48,18 +45,11 @@ public class SubscriptionService {
         return subscriptionRepository.save(subscription);
     }
 
-    /**
-     * Vérifier si un vendeur a un abonnement actif
-     */
     public boolean hasActiveSubscription(UUID userId) {
         return subscriptionRepository.findByUser_IdAndActiveTrue(userId)
-                .filter(Subscription::isActive)
                 .isPresent();
     }
 
-    /**
-     * Renouveler un abonnement
-     */
     public Subscription renewSubscription(UUID userId, int additionalDays) {
         Subscription subscription = subscriptionRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Abonnement introuvable"));
@@ -77,9 +67,6 @@ public class SubscriptionService {
         return subscriptionRepository.save(subscription);
     }
 
-    /**
-     * Annuler un abonnement
-     */
     public void cancelSubscription(UUID userId) {
         Subscription subscription = subscriptionRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Abonnement introuvable"));
@@ -88,9 +75,6 @@ public class SubscriptionService {
         subscriptionRepository.save(subscription);
     }
 
-    /**
-     * Obtenir les détails de l'abonnement d'un vendeur
-     */
     public Subscription getSubscription(UUID userId) {
         return subscriptionRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Abonnement introuvable"));
