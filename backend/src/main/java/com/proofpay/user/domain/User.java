@@ -75,7 +75,7 @@ public class User {
     @Column(name = "seller_verified_at")
     private Instant sellerVerifiedAt;
 
-    // ===== CHAMPS POUR LA RÉPUTATION =====
+    // ===== CHAMPS RÉPUTATION =====
     @Column(precision = 10, scale = 2)
     private BigDecimal rating;
 
@@ -107,8 +107,7 @@ public class User {
         return isSeller && status == UserStatus.ACTIVE && verifiedSeller && approvedSeller;
     }
 
-    // ========== GETTERS ET SETTERS POUR LA RÉPUTATION ==========
-
+    // ✅ Getters et setters avec valeurs par défaut pour éviter les NullPointerException
     public BigDecimal getRating() {
         return rating != null ? rating : BigDecimal.ZERO;
     }
@@ -139,5 +138,45 @@ public class User {
 
     public void setDisputesLostCount(Integer disputesLostCount) {
         this.disputesLostCount = disputesLostCount;
+    }
+
+    public boolean isSeller() {
+        return isSeller;
+    }
+
+    public void setSeller(boolean seller) {
+        isSeller = seller;
+    }
+
+    public boolean isBuyer() {
+        return isBuyer;
+    }
+
+    public void setBuyer(boolean buyer) {
+        isBuyer = buyer;
+    }
+
+    public boolean isVerifiedSeller() {
+        return verifiedSeller;
+    }
+
+    public void setVerifiedSeller(boolean verifiedSeller) {
+        this.verifiedSeller = verifiedSeller;
+    }
+
+    public boolean isApprovedSeller() {
+        return approvedSeller;
+    }
+
+    public void setApprovedSeller(boolean approvedSeller) {
+        this.approvedSeller = approvedSeller;
+    }
+
+    public UserStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
     }
 }
