@@ -33,7 +33,7 @@ public class SubscriptionService {
 
         Subscription subscription = Subscription.builder()
                 .user(user)
-                .plan(plan)
+                .plan(plan)  // ✅ Utiliser SubscriptionPlan directement
                 .startDate(Instant.now())
                 .endDate(Instant.now().plusSeconds(durationDays * 24 * 60 * 60L))
                 .autoRenew(false)
@@ -47,7 +47,7 @@ public class SubscriptionService {
 
     public boolean hasActiveSubscription(UUID userId) {
         return subscriptionRepository.findByUser_IdAndActiveTrue(userId)
-                .isPresent();
+                .isPresent();  // ✅ Retourne Optional, donc isPresent() fonctionne
     }
 
     public Subscription renewSubscription(UUID userId, int additionalDays) {
