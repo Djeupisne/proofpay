@@ -107,7 +107,7 @@ public class User {
         return isSeller && status == UserStatus.ACTIVE && verifiedSeller && approvedSeller;
     }
 
-    // ✅ Getters explicites pour AuthController
+    // ✅ Getters explicites pour AuthController et SellerController
     public UUID getId() {
         return id;
     }
@@ -122,6 +122,14 @@ public class User {
 
     public NotificationChannel getPreferredChannel() {
         return preferredChannel != null ? preferredChannel : NotificationChannel.SMS;
+    }
+
+    public UserStatus getStatus() {
+        return status;
+    }
+
+    public String getDisplayName() {
+        return displayName;
     }
 
     // ✅ Setters explicites
